@@ -1,17 +1,31 @@
 # 部署时要排除的文件。wrangler.jsonc 里的 assets.exclude 是无效字段，
 # 只会打印一句 warning 然后照样把整个目录传上去，所以必须靠这个文件。
+#
+# ⚠️ 注释只能独占一行。# 只有出现在行首才是注释，
+# 写成 ".git/    # 说明" 会把整行当成模式，结果什么都匹配不到。
 
-.git/                 # 不排除的话提交历史会被公开挂在公网上
+# 不排除的话提交历史会被公开挂在公网上
+.git/
 .gitattributes
 .gitignore
 .github/
+
 node_modules/
 .wrangler/
-.e2e/                 # 测试脚本，属于开发工具链，不该对外提供
+
+# 测试脚本和截图，属于开发工具链，不该对外提供
+.e2e/
+
+# README 的配图，只在 GitHub 上引用
+docs/
+
+# WorkBuddy 的项目记忆，只在本机有用
 .workbuddy-ai/
+
 package.json
 package-lock.json
 wrangler.jsonc
+LICENSE
 *.md
 
 # 同工作区里另一份无关项目的报告，不进仓库也不上线
