@@ -1,0 +1,3096 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="theme-color" content="#6E8AA3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>拼豆图案生成器 · 照片一键转拼豆图纸</title>
+<style>
+:root{
+  /* ============================================================
+     莫兰迪色系 —— 冷暖搭配
+     中性底是「暖调灰米」，把冷色（雾霾蓝／鼠尾草）和
+     暖色（陶土／燕麦／砖红）黏在同一张纸上。
+     每个色相都压过饱和度，靠明度差而不是彩度差来区分层级。
+     ============================================================ */
+
+  /* 中性 · 暖调灰米 */
+  --bg:#F2EFEB;
+  --card:#FFFFFF;
+  --soft:#FAF8F5;          /* 面板头 / 悬停底色 */
+  --soft-2:#F5F2EE;        /* 次级底色 */
+  --ink:#3B3A37;
+  --ink-2:#5E5C57;
+  --ink-3:#918D86;
+  --line:#E4DFD8;
+  --line-2:#EFEBE5;
+  --dash:#D6CFC6;          /* 虚线框 */
+  --hover-line:#D3CBC1;    /* 控件悬停描边 */
+  --track:#DED8D0;         /* 开关轨道 */
+  --checker:#EDE8E1;       /* 透明棋盘格 */
+
+  /* 冷 · 雾霾蓝（主色） */
+  --primary:#5A7590;
+  --primary-dark:#4A6278;
+  --primary-soft:#E7EDF2;
+  --primary-line:#C9D6E0;
+  --primary-ink:#3E5568;
+
+  /* 暖 · 陶土（次强调 / 点缀） */
+  --clay:#A98074;
+  --clay-soft:#F5EBE7;
+  --clay-line:#E5D1CA;
+  --clay-ink:#7E5A50;
+
+  /* 冷 · 鼠尾草绿（成功态） */
+  --sage:#6F8F80;
+  --sage-soft:#E9F0EC;
+  --sage-line:#CBDFD6;
+  --sage-ink:#4E6B5D;
+
+  /* 暖 · 燕麦沙（提醒态） */
+  --sand:#A68B5F;
+  --sand-soft:#F7F1E4;
+  --sand-line:#E8DCC0;
+  --sand-ink:#7C6438;
+
+  /* 暖 · 砖红（错误态） */
+  --brick:#A96A63;
+  --brick-soft:#F7EAE8;
+  --brick-line:#E9CFCB;
+  --brick-ink:#8A4E47;
+
+  /* 顶栏：左冷（雾霾蓝）→ 右暖（陶土灰），冷暖各占一半 */
+  --hero:linear-gradient(112deg,#6E8AA3 0%,#7D93A2 34%,#928A7E 68%,#A08C7C 100%);
+  --hero-shadow:0 4px 20px rgba(90,117,144,.20);
+
+  --radius:14px;
+  --shadow:0 1px 2px rgba(59,58,55,.04), 0 4px 16px rgba(59,58,55,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"PingFang SC","Microsoft YaHei","Hiragino Sans GB",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px;}
+
+/* ---------- 顶栏 ---------- */
+header{
+  background:var(--hero);
+  color:#fff;padding:26px 0 24px;margin-bottom:20px;
+  box-shadow:var(--hero-shadow);
+}
+header .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.logo{
+  width:44px;height:44px;border-radius:12px;flex:0 0 44px;
+  background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.28);
+  display:flex;align-items:center;justify-content:center;
+}
+h1{font-size:20px;margin:0;font-weight:700;letter-spacing:.01em;}
+header .sub{font-size:12.5px;color:rgba(255,255,255,.82);margin:2px 0 0;}
+header .badge{
+  margin-left:auto;font-size:12px;padding:5px 12px;border-radius:999px;
+  background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.24);
+  white-space:nowrap;
+}
+@media(max-width:600px){ header .badge{display:none;} h1{font-size:17.5px;} }
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;margin-bottom:16px;
+}
+.card > h2{
+  font-size:16px;margin:0 0 4px;font-weight:700;
+  display:flex;align-items:center;gap:9px;
+}
+.step{
+  width:22px;height:22px;border-radius:7px;flex:0 0 22px;
+  background:var(--primary);color:#fff;font-size:12.5px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.card .hint{font-size:12.5px;color:var(--ink-3);margin:0 0 16px;}
+
+/* ---------- 上传区 ---------- */
+#drop{
+  border:2px dashed var(--dash);border-radius:12px;background:var(--soft);
+  padding:38px 20px;text-align:center;cursor:pointer;
+  transition:border-color .18s, background .18s, transform .18s;
+}
+#drop:hover,#drop.over{border-color:var(--primary);background:var(--primary-soft);}
+#drop.over{transform:scale(1.008);}
+#drop .ic{font-size:34px;line-height:1;margin-bottom:10px;}
+#drop .t1{font-size:15px;font-weight:600;margin-bottom:5px;}
+#drop .t2{font-size:12.5px;color:var(--ink-3);}
+.upload-btns{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.upload-btns .btn{flex:1;min-width:132px;justify-content:center;}
+
+/* ---------- 按钮 ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:10px 18px;border-radius:10px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);font-size:14px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:all .16s;
+  white-space:nowrap;
+}
+.btn:hover{border-color:var(--hover-line);background:var(--soft);}
+.btn:active{transform:scale(.978);}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+.btn.primary:hover{background:var(--primary-dark);border-color:var(--primary-dark);}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--primary);padding:8px 10px;}
+.btn.sm{padding:7px 13px;font-size:13px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+
+/* ---------- 表单 ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 18px;}
+@media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr;}}
+.field{display:flex;flex-direction:column;gap:7px;min-width:0;}
+.field > label{font-size:12.5px;font-weight:600;color:var(--ink-2);}
+.field .note{font-size:11.5px;color:var(--ink-3);font-weight:400;}
+input[type=number],input[type=text],select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;
+  font-size:14px;font-family:inherit;background:#fff;color:var(--ink);
+  transition:border-color .15s, box-shadow .15s;
+}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(90,117,144,.13);
+}
+textarea{resize:vertical;min-height:76px;font-size:12.5px;line-height:1.6;
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;}
+input[type=range]{width:100%;accent-color:var(--primary);height:22px;}
+
+/* 分段控件 */
+.seg{display:flex;gap:6px;flex-wrap:wrap;}
+.seg button{
+  padding:7px 13px;border-radius:9px;border:1px solid var(--line);
+  background:#fff;font-size:13px;font-weight:600;color:var(--ink-2);
+  cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.seg button:hover{border-color:var(--hover-line);}
+.seg button.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+.seg.sm button{padding:6px 11px;font-size:12.5px;}
+
+/* ---------- 裁剪 ---------- */
+/* 外面这层只负责居中；舞台本身 inline-block 贴着图片收缩，
+   否则小图（480px）在整宽的舞台上会留出两大条被压暗的空区，很难看 */
+.crop-wrap{display:flex;justify-content:center;}
+.crop-stage{
+  display:inline-block;overflow:hidden;border-radius:12px;padding:14px;
+  background:var(--soft-2);border:1px solid var(--line);
+}
+.crop-inner{position:relative;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none;}
+.crop-inner canvas{display:block;border-radius:4px;}
+
+/* 框外压暗：用四块显式遮罩，而不是 box-shadow 的 9999px 溢出。
+   溢出式会把舞台内边距也一起压暗，在浅色卡片上糊成一大圈深色边框；
+   四块遮罩只盖图片区域，边框还是干净的浅色。 */
+.crop-veil{position:absolute;inset:0;pointer-events:none;}
+.crop-veil .cv{position:absolute;background:rgba(59,58,55,.55);}
+.crop-frame{
+  position:absolute;box-sizing:border-box;left:0;top:0;width:100px;height:100px;
+  border:1.5px solid #fff;cursor:move;
+  /* 1px 深色描边是给浅色照片上的白框留个轮廓，否则框会融进背景 */
+  box-shadow:0 0 0 1px rgba(59,58,55,.45);
+}
+.crop-frame i{
+  position:absolute;width:15px;height:15px;background:#fff;border-radius:3.5px;
+  border:1px solid rgba(59,58,55,.5);box-shadow:0 1px 3px rgba(59,58,55,.28);
+}
+.crop-frame i[data-h="nw"]{left:-8px;top:-8px;cursor:nwse-resize;}
+.crop-frame i[data-h="n"] {left:50%;top:-8px;margin-left:-7.5px;cursor:ns-resize;}
+.crop-frame i[data-h="ne"]{right:-8px;top:-8px;cursor:nesw-resize;}
+.crop-frame i[data-h="e"] {right:-8px;top:50%;margin-top:-7.5px;cursor:ew-resize;}
+.crop-frame i[data-h="se"]{right:-8px;bottom:-8px;cursor:nwse-resize;}
+.crop-frame i[data-h="s"] {left:50%;bottom:-8px;margin-left:-7.5px;cursor:ns-resize;}
+.crop-frame i[data-h="sw"]{left:-8px;bottom:-8px;cursor:nesw-resize;}
+.crop-frame i[data-h="w"] {left:-8px;top:50%;margin-top:-7.5px;cursor:ew-resize;}
+
+/* 三分线：构图辅助，纯粹是背景渐变，不占 DOM */
+.crop-thirds{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    linear-gradient(to right,transparent 33.13%,rgba(255,255,255,.5) 33.13%,rgba(255,255,255,.5) 33.53%,transparent 33.53%),
+    linear-gradient(to right,transparent 66.46%,rgba(255,255,255,.5) 66.46%,rgba(255,255,255,.5) 66.86%,transparent 66.86%),
+    linear-gradient(to bottom,transparent 33.13%,rgba(255,255,255,.5) 33.13%,rgba(255,255,255,.5) 33.53%,transparent 33.53%),
+    linear-gradient(to bottom,transparent 66.46%,rgba(255,255,255,.5) 66.46%,rgba(255,255,255,.5) 66.86%,transparent 66.86%);
+}
+.crop-size{
+  position:absolute;left:7px;top:7px;padding:2px 7px;border-radius:6px;
+  background:rgba(59,58,55,.74);color:#fff;font-size:11.5px;font-weight:600;
+  letter-spacing:.2px;line-height:1.5;white-space:nowrap;pointer-events:none;
+}
+.crop-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;}
+.crop-info{font-size:12.5px;color:var(--ink-3);line-height:1.7;min-width:0;}
+.crop-info b{color:var(--ink);font-weight:600;}
+@media(max-width:720px){ .crop-stage{padding:10px;} }
+
+/* 开关 */
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:3px 0;}
+.switch input{display:none;}
+.switch .track{
+  width:40px;height:23px;border-radius:999px;background:var(--track);flex:0 0 40px;
+  position:relative;transition:background .18s;
+}
+.switch .track::after{
+  content:"";position:absolute;top:2.5px;left:2.5px;width:18px;height:18px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);
+  transition:transform .18s;
+}
+.switch input:checked + .track{background:var(--primary);}
+.switch input:checked + .track::after{transform:translateX(17px);}
+.switch .lb{font-size:13.5px;font-weight:500;}
+
+/* ---------- 预览区 ---------- */
+.preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:900px){.preview-grid{grid-template-columns:1fr;}}
+.panel{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;}
+.panel-head{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:var(--soft);border-bottom:1px solid var(--line-2);
+  font-size:12.5px;font-weight:700;color:var(--ink-2);
+}
+.panel-head .r{margin-left:auto;font-weight:500;color:var(--ink-3);font-size:11.5px;}
+.canvas-box{
+  overflow:auto;background:
+    linear-gradient(45deg,var(--checker) 25%,transparent 25%,transparent 75%,var(--checker) 75%),
+    linear-gradient(45deg,var(--checker) 25%,#fff 25%,#fff 75%,var(--checker) 75%);
+  background-size:16px 16px;background-position:0 0,8px 8px;
+  max-height:60vh;padding:12px;
+  -webkit-overflow-scrolling:touch;
+}
+.canvas-box canvas{display:block;margin:0 auto;image-rendering:pixelated;border-radius:4px;box-shadow:0 1px 6px rgba(59,58,55,.10);}
+#srcCanvas{image-rendering:auto;}
+
+/* ---------- 统计条 ---------- */
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 0;}
+.stat{
+  flex:1;min-width:104px;background:var(--soft);border:1px solid var(--line-2);
+  border-radius:11px;padding:11px 14px;
+}
+.stat .k{font-size:11.5px;color:var(--ink-3);}
+.stat .v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.3;}
+.stat .v small{font-size:12px;font-weight:600;color:var(--ink-3);margin-left:2px;}
+
+/* ---------- 色卡清单 ---------- */
+.swatch-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:11px;overflow:hidden;}
+.sw-row{
+  display:grid;grid-template-columns:38px 76px 1fr auto;gap:12px;align-items:center;
+  padding:9px 14px;border-bottom:1px solid var(--line-2);font-size:13px;background:#fff;
+}
+.sw-row:last-child{border-bottom:none;}
+.sw-row:hover{background:var(--soft);}
+.sw-chip{
+  width:30px;height:30px;border-radius:8px;border:1px solid rgba(0,0,0,.1);
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.07);
+}
+.sw-code{font-weight:700;font-variant-numeric:tabular-nums;font-size:13px;}
+.sw-name{color:var(--ink-2);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sw-count{font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink);text-align:right;}
+.sw-count small{font-weight:500;color:var(--ink-3);font-size:11px;}
+.sw-head{
+  display:grid;grid-template-columns:38px 76px 1fr auto;gap:12px;
+  padding:8px 14px;background:var(--soft-2);font-size:11.5px;font-weight:700;color:var(--ink-3);
+  border-bottom:1px solid var(--line);
+}
+
+/* ---------- 提示 ---------- */
+.tip{
+  border-radius:11px;padding:13px 16px;font-size:13px;line-height:1.75;margin:14px 0 0;
+  border:1px solid;
+}
+.tip.blue{background:var(--primary-soft);border-color:var(--primary-line);color:var(--primary-ink);}
+.tip.amber{background:var(--sand-soft);border-color:var(--sand-line);color:var(--sand-ink);}
+.tip.teal{background:var(--sage-soft);border-color:var(--sage-line);color:var(--sage-ink);}
+.tip.clay{background:var(--clay-soft);border-color:var(--clay-line);color:var(--clay-ink);}
+.tip b{font-weight:700;}
+
+.hidden{display:none !important;}
+
+/* ---------- 优化方案多选 chips ---------- */
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px;}
+.chip{
+  display:flex;align-items:flex-start;gap:10px;text-align:left;
+  padding:12px 13px;border-radius:11px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;font-family:inherit;transition:all .15s;
+  position:relative;
+}
+.chip:hover{border-color:var(--hover-line);background:var(--soft);}
+.chip .em{font-size:19px;line-height:1.25;flex:0 0 auto;}
+.chip .tx{min-width:0;}
+.chip .tx b{display:block;font-size:13.5px;font-weight:700;color:var(--ink);line-height:1.45;}
+.chip .tx span{display:block;font-size:11.5px;color:var(--ink-3);line-height:1.5;margin-top:2px;}
+.chip.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px rgba(90,117,144,.10);}
+.chip.on .tx b{color:var(--primary-dark);}
+.chip .tick{
+  position:absolute;top:8px;right:9px;width:17px;height:17px;border-radius:50%;
+  border:1.5px solid var(--track);background:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:11px;color:transparent;line-height:1;transition:all .15s;
+}
+.chip.on .tick{background:var(--primary);border-color:var(--primary);color:#fff;}
+.chip.excl.on{border-color:var(--ink-3);background:var(--soft-2);}
+.chip.excl.on .tx b{color:var(--ink);}
+.chip.excl.on .tick{background:var(--ink-3);border-color:var(--ink-3);}
+
+/* 引擎选择 —— 冷暖对照：本地算法走冷（雾霾蓝），第三方 AI 走暖（陶土） */
+.engine{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+@media(max-width:640px){.engine{grid-template-columns:1fr;}}
+.engine button{
+  text-align:left;padding:13px 15px;border-radius:11px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.engine button:hover{border-color:var(--hover-line);}
+.engine button.on{border-color:var(--primary);background:var(--primary-soft);box-shadow:0 0 0 3px rgba(90,117,144,.10);}
+.engine .en-t{font-size:14px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:7px;}
+.engine .en-s{font-size:11.5px;color:var(--ink-3);margin-top:3px;line-height:1.5;}
+.engine button.on .en-t{color:var(--primary-dark);}
+.engine button[data-engine="ai"].on{border-color:var(--clay);background:var(--clay-soft);box-shadow:0 0 0 3px rgba(169,128,116,.13);}
+.engine button[data-engine="ai"].on .en-t{color:var(--clay-ink);}
+
+/* AI 配置面板 —— 跟随 AI 引擎的暖调 */
+.ai-panel{
+  border:1px solid var(--clay-line);background:linear-gradient(180deg,#FDFAF8,#F8F2EE);
+  border-radius:12px;padding:16px 18px;margin-top:16px;
+}
+.ai-panel .grid3{margin-top:0;}
+
+/* 前后对比 */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+@media(max-width:700px){.compare{grid-template-columns:1fr;}}
+.cmp-box{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#fff;}
+.cmp-box .hd{padding:8px 13px;background:var(--soft);border-bottom:1px solid var(--line-2);
+  font-size:12px;font-weight:700;color:var(--ink-2);display:flex;align-items:center;gap:7px;}
+.cmp-box .hd .r{margin-left:auto;font-weight:500;color:var(--ink-3);font-size:11px;}
+.cmp-box .bd{
+  padding:10px;display:flex;align-items:center;justify-content:center;min-height:130px;
+  background:linear-gradient(45deg,var(--checker) 25%,transparent 25%,transparent 75%,var(--checker) 75%),
+    linear-gradient(45deg,var(--checker) 25%,#fff 25%,#fff 75%,var(--checker) 75%);
+  background-size:14px 14px;background-position:0 0,7px 7px;
+}
+/* 画布和容器底都是棋盘格，不描个边就分不清"图到哪儿为止"和"哪里是透明" */
+.cmp-box canvas{
+  max-width:100%;max-height:230px;display:block;border-radius:5px;
+  box-shadow:0 0 0 1px var(--dash);
+}
+
+.op-status{
+  display:flex;align-items:center;gap:9px;font-size:12.5px;font-weight:600;
+  padding:9px 14px;border-radius:9px;margin-top:14px;
+}
+.op-status.idle{background:var(--soft-2);color:var(--ink-3);}
+.op-status.run{background:var(--primary-soft);color:var(--primary-dark);}
+.op-status.ok{background:var(--sage-soft);color:var(--sage-ink);}
+.op-status.err{background:var(--brick-soft);color:var(--brick-ink);}
+.op-status .dot2{width:7px;height:7px;border-radius:50%;background:currentColor;flex:0 0 7px;}
+/* 实时预览中：脉冲一下，让人知道画面是"活的" */
+.op-status.run .dot2{animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.7);}}
+
+/* 优化提示：去背没找到背景之类，说清楚而不是假装成功 */
+.op-hint{
+  display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.6;
+  padding:9px 13px;border-radius:9px;margin-top:8px;
+  background:var(--sand-soft);color:var(--sand-ink);border:1px solid var(--sand-line);
+}
+.op-hint .em{flex:0 0 auto;}
+
+/* 加载遮罩 */
+#loading{
+  position:fixed;inset:0;background:rgba(242,239,235,.86);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+  z-index:99;font-size:14px;color:var(--ink-2);font-weight:600;
+}
+.spin{
+  width:34px;height:34px;border:3px solid var(--track);border-top-color:var(--primary);
+  border-radius:50%;animation:sp .8s linear infinite;
+}
+@keyframes sp{to{transform:rotate(360deg);}}
+
+footer{
+  text-align:center;font-size:12px;color:var(--ink-3);
+  padding:26px 16px 40px;line-height:1.9;
+}
+kbd{
+  background:var(--soft-2);border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:5px;padding:1px 6px;font-size:11.5px;font-family:inherit;
+}
+@media print{
+  header,.no-print{display:none !important;}
+  .card{box-shadow:none;border:none;padding:0;}
+  .canvas-box{max-height:none;overflow:visible;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <circle cx="7" cy="7" r="3" fill="#fff" opacity=".95"/>
+        <circle cx="17" cy="7" r="3" fill="#fff" opacity=".7"/>
+        <circle cx="7" cy="17" r="3" fill="#fff" opacity=".7"/>
+        <circle cx="17" cy="17" r="3" fill="#fff" opacity=".95"/>
+      </svg>
+    </div>
+    <div>
+      <h1>拼豆图案生成器</h1>
+      <p class="sub">上传照片 → 自动排豆 · 感知色差匹配 · 用料清单</p>
+    </div>
+    <span class="badge">纯本地处理 · 图片不上传</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ========== 1 上传 ========== -->
+  <section class="card">
+    <h2><span class="step">1</span>选择图片</h2>
+    <p class="hint">支持 JPG / PNG / WEBP / GIF，也可以直接拖拽或粘贴（Ctrl+V）。图片只在本机浏览器处理，不会上传到任何服务器。</p>
+
+    <div id="drop">
+      <div class="ic">🖼️</div>
+      <div class="t1">点击选择图片，或拖拽到此处</div>
+      <div class="t2">建议选择主体清晰、背景干净的照片，排豆效果最好</div>
+    </div>
+
+    <div class="upload-btns">
+      <button class="btn" id="btnPick">📁 从相册选择</button>
+      <button class="btn" id="btnCamera">📷 拍照</button>
+      <button class="btn" id="btnDemo">✨ 用示例图试试</button>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" class="hidden">
+    <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+  </section>
+
+  <!-- ========== 2 裁剪 ========== -->
+  <section class="card hidden" id="cropCard">
+    <h2><span class="step">2</span>裁剪 <span style="font-size:12px;font-weight:600;color:var(--ink-3);margin-left:4px;">建议</span></h2>
+    <p class="hint">
+      拖动裁剪框选择要保留的区域，拖四角可以改大小。裁成<b>成品比例</b>后，排豆既不会四周留白，也不会被二次裁切。
+      原图始终保留着，随时可以重裁。
+    </p>
+
+    <div class="crop-wrap" id="cropWrap">
+      <div class="crop-stage">
+        <div class="crop-inner" id="cropInner">
+          <canvas id="cropCanvas"></canvas>
+          <div class="crop-veil" id="cropVeil">
+            <div class="cv" id="cvT"></div><div class="cv" id="cvB"></div>
+            <div class="cv" id="cvL"></div><div class="cv" id="cvR"></div>
+          </div>
+          <div class="crop-frame" id="cropFrame">
+            <div class="crop-thirds"></div>
+            <i data-h="nw"></i><i data-h="n"></i><i data-h="ne"></i><i data-h="e"></i>
+            <i data-h="se"></i><i data-h="s"></i><i data-h="sw"></i><i data-h="w"></i>
+            <span class="crop-size" id="cropSize"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:16px;">
+      <label>裁剪比例 <span class="note" id="cropRatioNote"></span></label>
+      <div class="seg sm" id="cropRatioSeg">
+        <button data-ratio="board" class="on">成品比例</button>
+        <button data-ratio="1" data-label="1 : 1">1 : 1</button>
+        <button data-ratio="1.3333333333" data-label="4 : 3">4 : 3</button>
+        <button data-ratio="0.75" data-label="3 : 4">3 : 4</button>
+        <button data-ratio="1.7777777778" data-label="16 : 9">16 : 9</button>
+        <button data-ratio="free">自由</button>
+      </div>
+    </div>
+
+    <div class="crop-bar">
+      <div class="crop-info" id="cropInfo"></div>
+      <button class="btn sm" id="btnCropReset">↺ 恢复整图</button>
+    </div>
+  </section>
+
+  <!-- ========== 3 图片优化（可选） ========== -->
+  <section class="card hidden" id="optCard">
+    <h2><span class="step">3</span>图片优化 <span style="font-size:12px;font-weight:600;color:var(--ink-3);margin-left:4px;">可选</span></h2>
+    <p class="hint">
+      先优化再排豆，效果通常好很多——尤其「去背」和「卡通化」，能直接去掉大片杂色豆。
+      不选任何方案就是<b>直出</b>，直接进入下一步。<br>
+      选方案、拖参数都会<b>实时预览</b>，下方的图纸同步跟着变，看到满意为止。
+    </p>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>优化引擎</label>
+      <div class="engine" id="engineSeg">
+        <button data-engine="local" class="on">
+          <div class="en-t">⚙️ 本地算法</div>
+          <div class="en-s">免配置 · 离线可用 · 图片不出本机</div>
+        </button>
+        <button data-engine="ai">
+          <div class="en-t">🤖 第三方 AI 模型</div>
+          <div class="en-s">效果更好，需要你自己的 API Key</div>
+        </button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:6px;">
+      <label>优化方案 <span class="note">— 可多选；选中「直出」会清空其它选项</span></label>
+      <div class="chips" id="chipBox">
+        <button class="chip" data-opt="bg">
+          <span class="em">✂️</span>
+          <span class="tx"><b>去背</b><span>移除纯色／简单背景，只保留主体</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip" data-opt="cartoon">
+          <span class="em">🎨</span>
+          <span class="tx"><b>卡通化</b><span>平滑色块＋描边，最接近拼豆观感</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip" data-opt="color">
+          <span class="em">🪄</span>
+          <span class="tx"><b>自动调色</b><span>白平衡＋色阶＋饱和度</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip" data-opt="align">
+          <span class="em">🧱</span>
+          <span class="tx"><b>像素预对齐</b><span>先按格数降采样，消除锯齿</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip" data-opt="denoise">
+          <span class="em">🧹</span>
+          <span class="tx"><b>降噪</b><span>抹平噪点，色块更干净</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip" data-opt="sharpen">
+          <span class="em">🔪</span>
+          <span class="tx"><b>锐化</b><span>强化边缘，轮廓更清晰</span></span>
+          <span class="tick">✓</span>
+        </button>
+        <button class="chip excl" data-opt="none">
+          <span class="em">⬜</span>
+          <span class="tx"><b>直出</b><span>不做任何处理</span></span>
+          <span class="tick">✓</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 本地参数 -->
+    <div class="grid3" id="localParams" style="margin-top:16px;">
+      <div class="field">
+        <label>去背容差 <span class="note" id="cutTolNote">32</span></label>
+        <input type="range" id="cutTol" min="6" max="90" value="32" step="1">
+      </div>
+      <div class="field">
+        <label>卡通化强度 <span class="note" id="cartoonNote">中</span></label>
+        <input type="range" id="cartoonLv" min="1" max="3" value="2" step="1">
+      </div>
+      <div class="field">
+        <label>处理分辨率 <span class="note">— 越高越慢；实时预览最高按 720px 跑</span></label>
+        <select id="workRes">
+          <option value="480">快（480px）</option>
+          <option value="720" selected>标准（720px）</option>
+          <option value="1000">精细（1000px）</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- AI 配置 -->
+    <div class="ai-panel hidden" id="aiPanel">
+      <div class="field" style="margin-bottom:14px;">
+        <label>服务商</label>
+        <select id="aiProvider">
+          <option value="openai">OpenAI 兼容端点（图像编辑）</option>
+          <option value="removebg">remove.bg（仅去背）</option>
+          <option value="custom">自定义 HTTP 接口</option>
+        </select>
+      </div>
+
+      <div class="grid3">
+        <div class="field">
+          <label>API Key</label>
+          <input type="password" id="aiKey" placeholder="sk-... / 你的密钥" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>接口地址</label>
+          <input type="text" id="aiEndpoint" placeholder="https://...">
+        </div>
+        <div class="field">
+          <label>模型名 <span class="note">（remove.bg 不需要）</span></label>
+          <input type="text" id="aiModel" placeholder="gpt-image-1">
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:14px;">
+        <label>CORS 代理前缀 <span class="note">— 可选。第三方接口大多不允许浏览器直连，需要代理</span></label>
+        <input type="text" id="aiProxy" placeholder="例如 https://your-proxy.example.com/?url=">
+      </div>
+
+      <div class="tip amber" style="margin-top:14px;">
+        <b>⚠️ 关于浏览器直连第三方 AI 接口</b><br>
+        · <b>remove.bg、Replicate 等明确不支持 CORS</b>，从网页直接调用会被浏览器拦截。要用它们必须自建代理，或在「CORS 代理前缀」里填入你的转发地址。<br>
+        · API Key 只保存在<b>本机 localStorage</b>，不会上传到任何服务器；但前端持有密钥本身有泄露风险，<b>请勿在公用电脑上填写</b>。<br>
+        · 如果接口要求密钥不能出现在前端，正确做法是部署一个后端转发——那样 Key 留在服务端，页面只调你自己的接口，此时把接口地址填成本站后端即可。
+      </div>
+    </div>
+
+    <div class="seg" style="margin-top:18px;">
+      <button class="btn primary" id="btnOptimize">✨ 高清重跑</button>
+      <button class="btn" id="btnResetOpt">↩️ 恢复原图</button>
+    </div>
+
+    <div class="op-status idle" id="opStatus"><span class="dot2"></span><span>尚未处理，将使用原图排豆</span></div>
+    <div class="op-hint hidden" id="opHint"></div>
+
+    <div class="compare hidden" id="compareBox">
+      <div class="cmp-box">
+        <div class="hd">优化前<span class="r" id="cmpBeforeInfo"></span></div>
+        <div class="bd"><canvas id="cmpBefore"></canvas></div>
+      </div>
+      <div class="cmp-box">
+        <div class="hd">优化后<span class="r" id="cmpAfterInfo"></span></div>
+        <div class="bd"><canvas id="cmpAfter"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 3 参数 ========== -->
+  <section class="card hidden" id="ctrlCard">
+    <h2><span class="step">4</span>设置参数</h2>
+    <p class="hint">调完自动重新生成，不需要点按钮。</p>
+
+    <div class="field" style="margin-bottom:16px;">
+      <label>拼豆板尺寸 <span class="note">— 决定成品精细度，格子越多越像原图，但用料也越多</span></label>
+      <div class="seg" id="presetSeg">
+        <button data-w="29" data-h="29">29 × 29 标准板</button>
+        <button data-w="38" data-h="38">38 × 38</button>
+        <button data-w="50" data-h="50">50 × 50</button>
+        <button data-w="57" data-h="57">57 × 57 四板</button>
+        <button data-w="0" data-h="0">自定义</button>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="field">
+        <label>宽度（颗）</label>
+        <input type="number" id="colsInput" value="29" min="8" max="200" step="1">
+      </div>
+      <div class="field">
+        <label>高度（颗） <span class="note" id="lockNote">按比例自动</span></label>
+        <input type="number" id="rowsInput" value="29" min="8" max="200" step="1">
+      </div>
+      <div class="field">
+        <label>锁定宽高比</label>
+        <label class="switch">
+          <input type="checkbox" id="lockRatio" checked>
+          <span class="track"></span>
+          <span class="lb">高度跟随图片比例</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="grid3" style="margin-top:16px;">
+      <div class="field">
+        <label>图片适配方式 <span class="note" id="fitNote" style="display:none;"></span></label>
+        <select id="fitMode">
+          <option value="contain">适应（完整显示，边缘留空）</option>
+          <option value="cover">裁剪铺满（推荐人物照）</option>
+          <option value="stretch">拉伸铺满（会变形）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>色卡</label>
+        <select id="paletteSel">
+          <option value="general">通用拼豆色卡（114 色）</option>
+          <option value="custom">自定义色卡…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>最多使用颜色数 <span class="note" id="maxColorNote">24 种</span></label>
+        <input type="range" id="maxColors" min="2" max="64" value="24" step="1">
+      </div>
+    </div>
+
+    <div class="field hidden" id="customPaletteWrap" style="margin-top:14px;">
+      <label>自定义色卡 <span class="note">— 每行一个颜色，格式 <code>色号 #RRGGBB 名称</code>，名称可省略</span></label>
+      <textarea id="customPalette" placeholder="A1 #FF0000 正红
+A2 #00A651 草绿
+B1 #FFFFFF 白
+B2 #000000 黑"></textarea>
+      <div style="margin-top:8px;"><button class="btn sm" id="btnApplyCustom">应用自定义色卡</button></div>
+    </div>
+
+    <div class="grid3" style="margin-top:16px;">
+      <div class="field">
+        <label>背景剔除 <span class="note">— 接近白底/透明的区域不排豆</span></label>
+        <label class="switch">
+          <input type="checkbox" id="bgRemove">
+          <span class="track"></span>
+          <span class="lb">忽略背景</span>
+        </label>
+      </div>
+      <div class="field">
+        <label>剔除容差 <span class="note" id="bgTolNote">28</span></label>
+        <input type="range" id="bgTol" min="0" max="90" value="28" step="1">
+      </div>
+      <div class="field">
+        <label>抖动（Floyd–Steinberg） <span class="note">— 渐变更自然，但会引入杂色</span></label>
+        <label class="switch">
+          <input type="checkbox" id="dither">
+          <span class="track"></span>
+          <span class="lb">开启抖动</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 4 结果 ========== -->
+  <section class="card hidden" id="resultCard">
+    <h2><span class="step">5</span>排豆结果</h2>
+    <p class="hint">左边是排豆用的底图（裁剪过就是裁剪后的样子），右边是排豆结果。可切换「图纸模式」（带网格和色号）和「成品模式」（圆豆效果）。</p>
+
+    <div class="seg no-print" id="viewSeg" style="margin-bottom:12px;">
+      <button data-view="pattern" class="on">📐 图纸模式</button>
+      <button data-view="bead">🔵 成品模式</button>
+    </div>
+
+    <div class="seg no-print" id="optSeg" style="margin-bottom:14px;">
+      <button data-opt="grid" class="on">网格线</button>
+      <button data-opt="coord" class="on">坐标</button>
+      <button data-opt="code">色号</button>
+      <button data-opt="board" class="on">分板线</button>
+    </div>
+
+    <div class="preview-grid">
+      <div class="panel">
+        <div class="panel-head"><span id="srcHead">原图</span><span class="r" id="srcInfo"></span></div>
+        <div class="canvas-box"><canvas id="srcCanvas"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">拼豆图纸<span class="r" id="outInfo"></span></div>
+        <div class="canvas-box"><canvas id="outCanvas"></canvas></div>
+      </div>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="tip blue no-print" id="boardTip"></div>
+
+    <div class="seg no-print" style="margin-top:16px;">
+      <button class="btn sm" id="btnZoomOut">➖ 缩小</button>
+      <button class="btn sm" id="btnZoomIn">➕ 放大</button>
+      <button class="btn sm" id="btnZoomFit">⤢ 适应</button>
+      <button class="btn sm" id="btnPrint">🖨️ 打印图纸</button>
+    </div>
+  </section>
+
+  <!-- ========== 5 用料清单 ========== -->
+  <section class="card hidden" id="listCard">
+    <h2><span class="step">6</span>用料清单</h2>
+    <p class="hint">按用量从多到少排序。买豆时建议每种多备 5–10%，拼错和损耗都用得上。</p>
+
+    <div class="swatch-list">
+      <div class="sw-head"><span></span><span>色号</span><span>颜色</span><span style="text-align:right;">用量</span></div>
+      <div id="swatchRows"></div>
+    </div>
+
+    <div class="seg no-print" style="margin-top:16px;">
+      <button class="btn sm" id="btnDlPattern">⬇️ 下载图纸 PNG</button>
+      <button class="btn sm" id="btnDlBead">⬇️ 下载成品 PNG</button>
+      <button class="btn sm" id="btnDlCsv">⬇️ 下载清单 CSV</button>
+      <button class="btn sm" id="btnCopyList">📋 复制清单</button>
+    </div>
+  </section>
+
+  <footer>
+    拼豆图案生成器 · 全部计算在本机浏览器完成，图片不会离开你的设备<br>
+    色卡为通用参考色，非特定品牌官方色号；实际买豆请以手上色卡为准
+  </footer>
+</div>
+
+<div id="loading" class="hidden"><div class="spin"></div><span>正在排豆…</span></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   一、色卡数据
+   ============================================================ */
+const GENERAL_PALETTE = [
+  // ---- W 白灰黑 12 ----
+  ["W01","#FFFFFF","纯白"],["W02","#F5F3EE","米白"],["W03","#E8E6E1","象牙白"],["W04","#D5D7D9","浅灰"],
+  ["W05","#BFC3C7","银灰"],["W06","#A3A8AD","中灰"],["W07","#868C92","深灰"],["W08","#676D73","炭灰"],
+  ["W09","#4A5057","石墨灰"],["W10","#31363C","铅灰"],["W11","#1B1E22","近黑"],["W12","#000000","纯黑"],
+  // ---- R 红粉 16 ----
+  ["R01","#FFF0F3","粉白"],["R02","#FFD9E2","浅樱粉"],["R03","#FFB3C6","樱花粉"],["R04","#FF8FAB","玫瑰粉"],
+  ["R05","#FF6B93","桃红"],["R06","#F5487F","玫红"],["R07","#E0195A","洋红"],["R08","#C4124A","深玫红"],
+  ["R09","#FF8A80","珊瑚粉"],["R10","#FF5252","亮红"],["R11","#F4212E","正红"],["R12","#D40E1E","大红"],
+  ["R13","#A80C18","深红"],["R14","#7A0A12","酒红"],["R15","#5A1A22","暗红棕"],["R16","#FFC2B4","蜜桃粉"],
+  // ---- O 橙棕 14 ----
+  ["O01","#FFE0B2","浅杏"],["O02","#FFCC80","杏色"],["O03","#FFB74D","浅橙"],["O04","#FF9800","橙"],
+  ["O05","#F57C00","深橙"],["O06","#E65100","橙棕"],["O07","#D2691E","焦糖"],["O08","#A0522D","赭石"],
+  ["O09","#8B5A2B","棕"],["O10","#6B4423","深棕"],["O11","#4E3119","咖啡"],["O12","#C8A27A","驼色"],
+  ["O13","#E8C39E","浅驼"],["O14","#FF7A45","橘红"],
+  // ---- Y 黄米 12 ----
+  ["Y01","#FFFDE7","米黄"],["Y02","#FFF9C4","淡黄"],["Y03","#FFF59D","浅黄"],["Y04","#FFEE58","柠檬黄"],
+  ["Y05","#FFEB3B","明黄"],["Y06","#FDD835","正黄"],["Y07","#F9A825","金黄"],["Y08","#E6A700","芥末黄"],
+  ["Y09","#C9A227","土黄"],["Y10","#8D6E1F","橄榄黄"],["Y11","#F5E6C8","奶油"],["Y12","#E3C77A","香槟"],
+  // ---- G 绿 16 ----
+  ["G01","#F1F8E9","极浅绿"],["G02","#DCEDC8","浅豆绿"],["G03","#C5E1A5","豆绿"],["G04","#AED581","嫩绿"],
+  ["G05","#9CCC65","草绿"],["G06","#7CB342","黄绿"],["G07","#689F38","绿"],["G08","#558B2F","叶绿"],
+  ["G09","#33691E","深绿"],["G10","#1B5E20","墨绿"],["G11","#4DB6AC","青绿"],["G12","#26A69A","蓝绿"],
+  ["G13","#00897B","深蓝绿"],["G14","#00695C","墨蓝绿"],["G15","#B2DFDB","薄荷"],["G16","#69F0AE","荧光绿"],
+  // ---- B 蓝青 18 ----
+  ["B01","#E3F2FD","极浅蓝"],["B02","#BBDEFB","浅蓝"],["B03","#90CAF9","天蓝"],["B04","#64B5F6","亮蓝"],
+  ["B05","#42A5F5","蓝"],["B06","#2196F3","正蓝"],["B07","#1E88E5","深蓝"],["B08","#1565C0","宝蓝"],
+  ["B09","#0D47A1","藏蓝"],["B10","#0A2E6B","深藏蓝"],["B11","#B3E5FC","冰蓝"],["B12","#4FC3F7","湖蓝"],
+  ["B13","#00BCD4","青"],["B14","#0097A7","深青"],["B15","#006064","墨青"],["B16","#C5CAE9","蓝紫灰"],
+  ["B17","#3F51B5","靛蓝"],["B18","#283593","深靛"],
+  // ---- P 紫 10 ----
+  ["P01","#F3E5F5","淡紫"],["P02","#E1BEE7","浅紫"],["P03","#CE93D8","藕紫"],["P04","#BA68C8","亮紫"],
+  ["P05","#AB47BC","正紫"],["P06","#8E24AA","深紫"],["P07","#6A1B9A","紫罗兰"],["P08","#4A148C","墨紫"],
+  ["P09","#9575CD","薰衣草"],["P10","#7E57C2","蓝紫"],
+  // ---- F 肤色 6 ----
+  ["F01","#FFE0BD","肤色1"],["F02","#F1C27D","肤色2"],["F03","#E0AC69","肤色3"],["F04","#C68642","肤色4"],
+  ["F05","#8D5524","肤色5"],["F06","#5C3317","肤色6"],
+  // ---- S 特殊 10 ----
+  ["S01","#FFD700","金"],["S02","#C0C0C0","银"],["S03","#E0E0E0","珠光白"],["S04","#FF00FF","荧光粉"],
+  ["S05","#00FFFF","荧光青"],["S06","#CCFF00","荧光黄绿"],["S07","#8D6E63","陶土"],["S08","#F5F5DC","米色"],
+  ["S09","#BDB76B","卡其"],["S10","#2F4F4F","石板灰"]
+];
+
+/* ============================================================
+   二、颜色工具：sRGB → CIELAB，用感知色差匹配
+   ============================================================ */
+function hexToRgb(hex){
+  hex = hex.replace('#','').trim();
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  return [parseInt(hex.slice(0,2),16), parseInt(hex.slice(2,4),16), parseInt(hex.slice(4,6),16)];
+}
+function rgbToHex(r,g,b){
+  return '#' + [r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+// sRGB → 线性 → XYZ(D65) → Lab
+function srgbToLinear(c){
+  c /= 255;
+  return c <= 0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+}
+const LAB_CACHE = new Map();
+const LAB_CACHE_MAX = 120000;
+function rgbToLab(r,g,b){
+  const key = (r<<16)|(g<<8)|b;
+  let v = LAB_CACHE.get(key);
+  if(v) return v;
+  if(LAB_CACHE.size > LAB_CACHE_MAX) LAB_CACHE.clear();
+  const R = srgbToLinear(r), G = srgbToLinear(g), B = srgbToLinear(b);
+  let X = (R*0.4124564 + G*0.3575761 + B*0.1804375) / 0.95047;
+  let Y = (R*0.2126729 + G*0.7151522 + B*0.0721750) / 1.00000;
+  let Z = (R*0.0193339 + G*0.1191920 + B*0.9503041) / 1.08883;
+  const f = t => t > 0.008856 ? Math.cbrt(t) : (7.787*t + 16/116);
+  const fx = f(X), fy = f(Y), fz = f(Z);
+  v = [116*fy - 16, 500*(fx-fy), 200*(fy-fz)];
+  LAB_CACHE.set(key, v);
+  return v;
+}
+function labDist2(a, b){
+  const dL = a[0]-b[0], da = a[1]-b[1], db = a[2]-b[2];
+  return dL*dL + da*da + db*db;
+}
+
+/* ============================================================
+   三、色卡构建
+   ============================================================ */
+function buildPalette(list){
+  return list.map(([code,hex,name])=>{
+    const [r,g,b] = hexToRgb(hex);
+    return {code, hex:hex.toUpperCase(), name, r, g, b, lab:rgbToLab(r,g,b)};
+  });
+}
+function parseCustomPalette(text){
+  const out = [];
+  const lines = text.split('\n');
+  let auto = 1;
+  for(const raw of lines){
+    const line = raw.trim();
+    if(!line || line.startsWith('#')) continue;
+    // 必须先试 6 位：正则的分支是「先匹配先赢」，写成 {3}|{6} 的话
+    // #FF0000 会被截成 #FF0，再被 hexToRgb 展开成 #FFFF00（黄），颜色全错。
+    const m = line.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})/);
+    if(!m) continue;
+    const hex = m[0].toUpperCase();
+    const before = line.slice(0, m.index).trim();
+    const after  = line.slice(m.index + m[0].length).trim();
+    const code = before || ('C' + String(auto).padStart(2,'0'));
+    const name = after || '自定义';
+    out.push([code, hex, name]);
+    auto++;
+  }
+  return out;
+}
+
+/* ============================================================
+   四、状态
+   ============================================================ */
+const S = {
+  img: null,          // 原图（永不修改，用于对比和"恢复原图"）
+  imgW: 0, imgH: 0,
+  baseImg: null,      // 底图 = 原图裁剪后的结果；排豆和优化都吃它
+  baseW: 0, baseH: 0,
+  cropped: false,     // 底图是否真的裁过（裁剪框是否小于整图）
+  workImg: null,      // 排豆实际使用的图（底图，或优化后的结果）
+  workW: 0, workH: 0,
+  result: null,       // { cols, rows, idx:Int16Array, colors:[...] }
+  view: 'pattern',
+  opts: { grid:true, coord:true, code:false, board:true },
+  palette: null,
+  zoom: 1,
+  busy: false,
+  gen: 0,             // 出图轮次计数：每次 generate 出结果后 +1
+  optGen: 0,          // 优化轮次计数：每次优化结果落地后 +1
+  // 裁剪：rect 是归一化坐标（相对原图），与原图分辨率无关
+  crop: { rect:{ x:0, y:0, w:1, h:1 }, mode:'board', disp:{ w:1, h:1 } },
+  // 图片优化
+  opt: { engine:'local', chips:[], cutTol:32, cartoonLv:2, workRes:720 },
+  optCache: null,     // { canvas, preAlign, chips, cols, rows }
+  ai: { provider:'openai', key:'', endpoint:'', model:'', proxy:'' }
+};
+
+/* ============================================================
+   五、DOM
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const dropEl      = $('drop');
+const fileInput   = $('fileInput');
+const camInput    = $('camInput');
+const ctrlCard    = $('ctrlCard');
+const optCard     = $('optCard');
+const cropCard    = $('cropCard');
+const cropInner   = $('cropInner');
+const cropCanvas  = $('cropCanvas');
+const cropFrame   = $('cropFrame');
+const cropSizeEl  = $('cropSize');
+const cropInfoEl  = $('cropInfo');
+const cropRatioSeg= $('cropRatioSeg');
+const cropWrap    = $('cropWrap');
+const cvT = $('cvT'), cvB = $('cvB'), cvL = $('cvL'), cvR = $('cvR');
+const resultCard  = $('resultCard');
+const listCard    = $('listCard');
+const colsInput   = $('colsInput');
+const rowsInput   = $('rowsInput');
+const lockRatio   = $('lockRatio');
+const fitMode     = $('fitMode');
+const paletteSel  = $('paletteSel');
+const maxColors   = $('maxColors');
+const maxColorNote= $('maxColorNote');
+const bgRemove    = $('bgRemove');
+const bgTol       = $('bgTol');
+const bgTolNote   = $('bgTolNote');
+const ditherChk   = $('dither');
+const srcCanvas   = $('srcCanvas');
+const outCanvas   = $('outCanvas');
+const loading     = $('loading');
+
+/* ============================================================
+   六、图片加载
+   ============================================================ */
+function showLoading(txt){
+  loading.querySelector('span').textContent = txt || '正在排豆…';
+  loading.classList.remove('hidden');
+}
+function hideLoading(){ loading.classList.add('hidden'); }
+
+async function handleFile(file){
+  if(!file || !file.type.startsWith('image/')){
+    alert('请选择图片文件（JPG / PNG / WEBP / GIF）');
+    return;
+  }
+  showLoading('正在读取图片…');
+  try{
+    let bmp;
+    try{
+      // 优先用 createImageBitmap，可自动处理 EXIF 方向
+      bmp = await createImageBitmap(file, { imageOrientation:'from-image' });
+    }catch(e){
+      bmp = await createImageBitmap(file);
+    }
+    S.img = bmp;
+    S.imgW = bmp.width;
+    S.imgH = bmp.height;
+    onImageReady();
+  }catch(err){
+    console.error(err);
+    // 兜底：用 Image + ObjectURL
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = ()=>{
+      S.img = im; S.imgW = im.naturalWidth; S.imgH = im.naturalHeight;
+      URL.revokeObjectURL(url);
+      onImageReady();
+    };
+    im.onerror = ()=>{ hideLoading(); alert('图片读取失败，请换一张试试'); };
+    im.src = url;
+  }
+}
+
+function onImageReady(){
+  // 新图片：重置优化状态
+  clearTimeout(previewTimer);
+  previewToken++;
+  S.optCache = null;
+  S.opt.chips = [];
+  syncChips();
+  $('compareBox').classList.add('hidden');
+  setOpHint([]);
+
+  cropCard.classList.remove('hidden');
+  optCard.classList.remove('hidden');
+  ctrlCard.classList.remove('hidden');
+  resultCard.classList.remove('hidden');
+  listCard.classList.remove('hidden');
+
+  // 先让高度跟随"原图"比例，再按成品比例立裁剪框 —— 顺序不能反：
+  // 反过来的话，成品比例还是上一张图留下的，新图一进来就会被莫名裁掉一块。
+  S.workImg = S.img; S.workW = S.imgW; S.workH = S.imgH;
+  applyRatioToRows();
+
+  S.crop.mode = 'board';
+  S.crop.rect = { x:0, y:0, w:1, h:1 };
+  syncCropSeg();
+  applyCropRatio();
+  layoutCrop();
+  applyCrop();          // 内部会 drawSource + applyRatioToRows + generate
+
+  hideLoading();
+  cropCard.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function applyRatioToRows(){
+  if(!S.workImg || !lockRatio.checked) return;
+  const cols = clamp(parseInt(colsInput.value)||29, 8, 200);
+  const r = Math.round(cols * S.workH / S.workW);
+  rowsInput.value = clamp(r, 8, 200);
+}
+
+/* ============================================================
+   六之二、裁剪
+   ------------------------------------------------------------
+   原图 S.img 永不改动；裁剪只产出一张"底图" S.baseImg，
+   排豆和优化都吃底图。这样用户随时能重裁，不用重新选图。
+
+   裁剪框存的是归一化坐标（相对原图），换显示尺寸、换设备都不受影响。
+   ============================================================ */
+const MIN_CROP = 24;        // 裁剪框最小边长（原图像素）
+
+/** 当前目标比例（宽/高，按原图像素算）。null = 自由 */
+function cropRatioValue(){
+  const m = S.crop.mode;
+  if (m === 'free') return null;
+  if (m === 'board'){
+    const c = clamp(parseInt(colsInput.value) || 29, 8, 200);
+    const r = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+    return c / r;
+  }
+  return parseFloat(m);
+}
+
+/** 把任意矩形收成合法值：比例精确、不越界、不小于最小边长。中心尽量不动。 */
+function legalCropRect(rx, ry, rw, rh, ratio){
+  const W = S.imgW, H = S.imgH;
+  let pw = rw * W, ph = rh * H;
+  const cx = rx * W + pw / 2, cy = ry * H + ph / 2;
+
+  if (ratio){
+    // 比例锁死之后只剩一个自由度：拿高度当变量，宽度由比例推出来。
+    // hMax 保证 pw = ph*ratio 的同时也不会超出画布宽度。
+    const hMax = Math.min(H, W / ratio);
+    const hMin = Math.min(hMax, Math.max(MIN_CROP, MIN_CROP / ratio));
+    ph = clamp(ph, hMin, hMax);
+    pw = ph * ratio;
+  } else {
+    pw = clamp(pw, Math.min(MIN_CROP, W), W);
+    ph = clamp(ph, Math.min(MIN_CROP, H), H);
+  }
+  const x = clamp(cx - pw / 2, 0, W - pw);
+  const y = clamp(cy - ph / 2, 0, H - ph);
+  return { x: x / W, y: y / H, w: pw / W, h: ph / H };
+}
+
+/** 按当前比例重设裁剪框：保住中心，尺寸尽量不变（还没裁过就给塞得下的最大框） */
+function applyCropRatio(){
+  if (!S.img) return;
+  const ratio = cropRatioValue();
+  const c = S.crop.rect, W = S.imgW, H = S.imgH;
+  const pw0 = c.w * W, ph0 = c.h * H;
+  const cx = c.x * W + pw0 / 2, cy = c.y * H + ph0 / 2;
+  let pw, ph;
+  if (!ratio){
+    pw = pw0; ph = ph0;
+  } else if (c.w > 0.999 && c.h > 0.999){
+    ph = Math.min(H, W / ratio);        // 整图状态：直接给最大框
+    pw = ph * ratio;
+  } else {
+    ph = Math.min(ph0, W / ratio);      // 已经裁过：保住高度，宽度超了才缩
+    pw = ph * ratio;
+  }
+  S.crop.rect = legalCropRect((cx - pw / 2) / W, (cy - ph / 2) / H, pw / W, ph / H, ratio);
+}
+
+/** 按显示尺寸把原图画进裁剪舞台，并摆好裁剪框 */
+function layoutCrop(){
+  if (!S.img) return;
+  // 量外层容器而不是 .crop-stage —— 舞台是随内容收缩的，量它会变成自己算自己
+  const maxW = Math.max(180, cropWrap.clientWidth - 30);
+  const maxH = window.innerWidth <= 720 ? 290 : 400;
+  const s = Math.min(maxW / S.imgW, maxH / S.imgH, 1);
+  const dw = Math.max(1, Math.round(S.imgW * s));
+  const dh = Math.max(1, Math.round(S.imgH * s));
+  S.crop.disp = { w: dw, h: dh };
+  cropCanvas.width = dw; cropCanvas.height = dh;
+  const g = cropCanvas.getContext('2d');
+  g.clearRect(0, 0, dw, dh);
+  g.drawImage(S.img, 0, 0, dw, dh);
+  cropInner.style.width  = dw + 'px';
+  cropInner.style.height = dh + 'px';
+  renderCropFrame();
+}
+
+function renderCropFrame(){
+  const c = S.crop.rect, d = S.crop.disp;
+  const L = c.x * d.w, T = c.y * d.h, FW = c.w * d.w, FH = c.h * d.h;
+  cropFrame.style.left   = L + 'px';
+  cropFrame.style.top    = T + 'px';
+  cropFrame.style.width  = FW + 'px';
+  cropFrame.style.height = FH + 'px';
+  // 四块遮罩拼出"框外压暗"，只覆盖图片区域
+  cvT.style.cssText = `left:0;right:0;top:0;height:${T}px`;
+  cvB.style.cssText = `left:0;right:0;top:${T + FH}px;bottom:0`;
+  cvL.style.cssText = `left:0;top:${T}px;width:${L}px;height:${FH}px`;
+  cvR.style.cssText = `left:${L + FW}px;top:${T}px;right:0;height:${FH}px`;
+  cropSizeEl.textContent = Math.round(c.w * S.imgW) + ' × ' + Math.round(c.h * S.imgH);
+  // 框太小就别硬塞角标，否则整个框都被它盖住
+  cropSizeEl.style.display = (FW < 118 || FH < 46) ? 'none' : '';
+  updateCropInfo();
+}
+
+function gcd(a, b){ while (b){ const t = a % b; a = b; b = t; } return a || 1; }
+
+/** 比例标注。必须显示用户设定的比例，不能拿裁剪后的像素约分 ——
+    480×360 约出来是 4:3 还能看，1186×900 会约成 593:450，纯属噪音。 */
+function cropRatioLabel(pw, ph){
+  if (S.crop.mode === 'board'){
+    const bw = clamp(parseInt(colsInput.value) || 29, 8, 200);
+    const bh = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+    return bw + ' : ' + bh;
+  }
+  const btn = [...cropRatioSeg.children].find(b => b.dataset.ratio === S.crop.mode);
+  if (btn && btn.dataset.label) return btn.dataset.label;
+  // 自由比例：只有当像素比能约成小整数时才值得显示
+  const g = gcd(pw, ph);
+  const a = Math.round(pw / g), b = Math.round(ph / g);
+  return (a <= 60 && b <= 60) ? a + ' : ' + b : null;
+}
+
+function updateCropInfo(){
+  if (!S.img) return;
+  const c = S.crop.rect;
+  const pw = Math.round(c.w * S.imgW), ph = Math.round(c.h * S.imgH);
+  const kept = c.w * c.h * 100;
+  const full = c.w > 0.999 && c.h > 0.999;
+  // 非正方形照片导入时会按成品比例收掉一点点边（29:22 对 4:3 大约 1%），
+  // 这时候说"裁剪后"会让人以为被裁了一大块，措辞得跟着实际情况走。
+  let html = full
+    ? `未裁剪，整张图都会参与排豆 · <b>${S.imgW} × ${S.imgH} px</b>`
+    : kept >= 98
+      ? `几乎没裁，只按成品比例收掉了边缘一点点 · <b>${pw} × ${ph} px</b>`
+      : `裁剪后 <b>${pw} × ${ph} px</b> · 保留 <b>${kept.toFixed(0)}%</b> 画面`;
+  const label = cropRatioLabel(pw, ph);
+  if (label) html += ` · 比例 <b>${label}</b>`;
+  cropInfoEl.innerHTML = html;
+
+  const bw = clamp(parseInt(colsInput.value) || 29, 8, 200);
+  const bh = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+  $('cropRatioNote').textContent =
+    S.crop.mode === 'board' ? `跟随成品尺寸（${bw} × ${bh}）`
+    : S.crop.mode === 'free' ? '自由调整，成品再按「适配方式」处理'
+    : '固定比例';
+}
+
+/** 生成裁剪后的底图，并把下游（排豆 + 优化）全部刷成基于新底图 */
+function applyCrop(){
+  if (!S.img) return;
+  const c = S.crop.rect;
+  const px = Math.round(c.x * S.imgW), py = Math.round(c.y * S.imgH);
+  const pw = Math.max(1, Math.round(c.w * S.imgW)), ph = Math.max(1, Math.round(c.h * S.imgH));
+  const full = px === 0 && py === 0 && pw === S.imgW && ph === S.imgH;
+
+  if (full){
+    S.baseImg = S.img; S.baseW = S.imgW; S.baseH = S.imgH;
+  } else {
+    const cv = makeCanvas(pw, ph);
+    const g = cv.getContext('2d', { willReadFrequently:true });
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(S.img, px, py, pw, ph, 0, 0, pw, ph);
+    S.baseImg = cv; S.baseW = pw; S.baseH = ph;
+  }
+  S.cropped = !full;
+
+  // 换了底图，基于旧底图算出来的优化结果就作废了
+  clearTimeout(previewTimer);
+  previewToken++;
+  S.optCache = null;
+  $('compareBox').classList.add('hidden');
+  setWorkImage(S.baseImg, S.baseW, S.baseH);
+
+  drawSource();
+  applyRatioToRows();
+  updateFitNote();
+  generate();
+  // 已经勾过方案就重跑预览；AI 引擎交给 schedulePreview 只做提示，不自动烧额度
+  if (S.opt.chips.some(k => k !== 'none')) schedulePreview();
+  else setOpStatus('idle', full ? '尚未处理，将使用原图排豆' : '尚未处理，将使用裁剪后的图排豆');
+}
+
+/** 成品尺寸变了：裁剪按「成品比例」且高度不跟随图片时，把裁剪框重新贴合新比例 */
+function syncCropToBoard(){
+  if (!S.img || S.crop.mode !== 'board' || lockRatio.checked) return false;
+  const before = S.crop.rect;
+  applyCropRatio();
+  const a = S.crop.rect;
+  const same = Math.abs(a.x - before.x) < 1e-9 && Math.abs(a.y - before.y) < 1e-9
+            && Math.abs(a.w - before.w) < 1e-9 && Math.abs(a.h - before.h) < 1e-9;
+  if (same) return false;
+  layoutCrop();
+  applyCrop();
+  return true;
+}
+
+/** 底图已经是成品比例时，contain / cover / stretch 的结果完全相同，明说一句。
+    注意判据不是"比例是否精确相等"：底图按整数像素裁出来，比例几乎不可能正好等于
+    cols:rows（480×244 vs 57:29 就差 0.09%）。真正该问的是"适配方式会不会改变结果"——
+    把比例差换算成"会留多少格子的边"，不到半格就说明三种方式出来的是同一张图。 */
+function updateFitNote(){
+  const note = $('fitNote');
+  if (!note) return;
+  if (!S.baseW || !S.baseH){ note.style.display = 'none'; return; }
+  const bw = clamp(parseInt(colsInput.value) || 29, 8, 200);
+  const bh = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+  const sAsp = S.baseW / S.baseH;
+  const slack = sAsp > bw / bh
+    ? Math.abs(bh - bw / sAsp)      // 底图更宽 → 上下留白，按行算
+    : Math.abs(bw - bh * sAsp);     // 底图更高 → 左右留白，按列算
+  const governed = slack < 0.5;
+  note.textContent = governed ? '底图已是成品比例，此项不再影响结果' : '';
+  note.style.display = governed ? '' : 'none';
+}
+
+/** 重置成整张图（顺带切到自由比例，免得马上又被成品比例收回去） */
+function resetCrop(){
+  if (!S.img) return;
+  S.crop.mode = 'free';
+  S.crop.rect = { x:0, y:0, w:1, h:1 };
+  syncCropSeg();
+  renderCropFrame();
+  applyCrop();
+}
+
+function syncCropSeg(){
+  [...cropRatioSeg.children].forEach(b =>
+    b.classList.toggle('on', b.dataset.ratio === S.crop.mode));
+}
+
+/* ---------- 拖拽 / 缩放 ---------- */
+let cropDrag = null;
+
+function cropPointerDown(ev){
+  if (!S.img || ev.button > 0) return;
+  const h = (ev.target.dataset && ev.target.dataset.h) || 'move';
+  ev.preventDefault();
+  const c = S.crop.rect;
+  cropDrag = {
+    h,
+    x0: ev.clientX, y0: ev.clientY,
+    start: { x: c.x * S.imgW, y: c.y * S.imgH, w: c.w * S.imgW, h: c.h * S.imgH },
+    ratio: cropRatioValue()
+  };
+  try { cropFrame.setPointerCapture(ev.pointerId); } catch(e){}
+}
+
+function cropPointerMove(ev){
+  if (!cropDrag) return;
+  const d = cropDrag, W = S.imgW, H = S.imgH;
+  // 显示像素 → 原图像素
+  const dx = (ev.clientX - d.x0) / S.crop.disp.w * W;
+  const dy = (ev.clientY - d.y0) / S.crop.disp.h * H;
+  const s = d.start;
+
+  if (d.h === 'move'){
+    const x = clamp(s.x + dx, 0, W - s.w);
+    const y = clamp(s.y + dy, 0, H - s.h);
+    S.crop.rect = { x: x / W, y: y / H, w: s.w / W, h: s.h / H };
+    renderCropFrame();
+    return;
+  }
+
+  const wE = d.h.indexOf('w') >= 0, eE = d.h.indexOf('e') >= 0;
+  const nE = d.h.indexOf('n') >= 0, sE = d.h.indexOf('s') >= 0;
+  let L = s.x, R = s.x + s.w, T = s.y, B = s.y + s.h;
+  if (wE) L += dx;
+  if (eE) R += dx;
+  if (nE) T += dy;
+  if (sE) B += dy;
+
+  let pw = R - L, ph = B - T;
+  let cx = (L + R) / 2, cy = (T + B) / 2;
+
+  if (d.ratio){
+    const bothX = wE || eE, bothY = nE || sE;
+    if (bothX && bothY){
+      // 角：锚点是对角，只让鼠标那一侧动
+      const ax = wE ? s.x + s.w : s.x;
+      const ay = nE ? s.y + s.h : s.y;
+      const wRaw = Math.abs((wE ? L : R) - ax);
+      const hRaw = Math.abs((nE ? T : B) - ay);
+      if (wRaw / hRaw > d.ratio) ph = wRaw / d.ratio; else ph = hRaw;
+      pw = ph * d.ratio;
+      cx = wE ? ax - pw / 2 : ax + pw / 2;
+      cy = nE ? ay - ph / 2 : ay + ph / 2;
+    } else if (bothX){
+      // 左右边：高度跟着宽度走，垂直中心不动
+      ph = pw / d.ratio;
+      cy = s.y + s.h / 2;
+    } else {
+      pw = ph * d.ratio;
+      cx = s.x + s.w / 2;
+    }
+  }
+  S.crop.rect = legalCropRect((cx - pw / 2) / W, (cy - ph / 2) / H, pw / W, ph / H, d.ratio);
+  renderCropFrame();
+}
+
+function cropPointerUp(ev){
+  if (!cropDrag) return;
+  cropDrag = null;
+  try { cropFrame.releasePointerCapture(ev.pointerId); } catch(e){}
+  applyCrop();
+}
+
+cropFrame.addEventListener('pointerdown', cropPointerDown);
+cropFrame.addEventListener('pointermove', cropPointerMove);
+cropFrame.addEventListener('pointerup', cropPointerUp);
+cropFrame.addEventListener('pointercancel', cropPointerUp);
+cropRatioSeg.addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if (!btn || !S.img) return;
+  S.crop.mode = btn.dataset.ratio;
+  syncCropSeg();
+  applyCropRatio();
+  renderCropFrame();
+  applyCrop();
+});
+$('btnCropReset').addEventListener('click', resetCrop);
+
+/** 画排豆用的底图（裁剪过就是裁剪后的样子），不是原始照片 */
+function drawSource(){
+  const src = S.baseImg || S.img;
+  if(!src) return;
+  const [sw, sh] = imgDims(src);
+  const maxW = 520;
+  const scale = Math.min(1, maxW / sw);
+  srcCanvas.width  = Math.max(1, Math.round(sw * scale));
+  srcCanvas.height = Math.max(1, Math.round(sh * scale));
+  const ctx = srcCanvas.getContext('2d');
+  ctx.clearRect(0,0,srcCanvas.width,srcCanvas.height);
+  ctx.drawImage(src, 0, 0, srcCanvas.width, srcCanvas.height);
+  $('srcInfo').textContent = sw + ' × ' + sh + ' px';
+  $('srcHead').textContent = S.cropped ? '裁剪后' : '原图';
+}
+
+/* ============================================================
+   七、核心：图像 → 网格
+   ============================================================ */
+const SUPER = 4;   // 超采样倍数，用于块平均降采样
+
+function computeGrid(cols, rows, fit, bgOn, bgTolVal){
+  const iw = S.workW, ih = S.workH;
+  const sAsp = iw/ih, dAsp = cols/rows;
+
+  const W = cols * SUPER, H = rows * SUPER;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d', { willReadFrequently:true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.clearRect(0,0,W,H);
+
+  let dw, dh, dx, dy;
+  if(fit === 'stretch'){
+    dw = W; dh = H; dx = 0; dy = 0;
+  }else if(fit === 'contain'){
+    if(sAsp > dAsp){ dw = W; dh = W/sAsp; } else { dh = H; dw = H*sAsp; }
+    dx = (W-dw)/2; dy = (H-dh)/2;
+  }else{ // cover
+    if(sAsp > dAsp){ dh = H; dw = H*sAsp; } else { dw = W; dh = W/sAsp; }
+    dx = (W-dw)/2; dy = (H-dh)/2;
+  }
+  ctx.drawImage(S.workImg, dx, dy, dw, dh);
+
+  const data = ctx.getImageData(0,0,W,H).data;
+  const cells = new Uint8ClampedArray(cols*rows*4);
+  const empty = new Uint8Array(cols*rows);
+  const tol = bgTolVal;
+
+  for(let y=0; y<rows; y++){
+    for(let x=0; x<cols; x++){
+      let sr=0, sg=0, sb=0, sa=0, n=0;
+      const y0 = y*SUPER, x0 = x*SUPER;
+      for(let yy=y0; yy<y0+SUPER; yy++){
+        let p = (yy*W + x0)*4;
+        for(let xx=0; xx<SUPER; xx++){
+          sr += data[p]; sg += data[p+1]; sb += data[p+2]; sa += data[p+3];
+          p += 4; n++;
+        }
+      }
+      const r = sr/n, g = sg/n, b = sb/n, a = sa/n;
+      const ci = y*cols + x;
+      cells[ci*4]   = r;
+      cells[ci*4+1] = g;
+      cells[ci*4+2] = b;
+      cells[ci*4+3] = a;
+
+      // 全透明 = 这里本来就没有图像内容：「适应」留的边、或者被「去背」挖掉的背景。
+      // 天然就是空豆，不该再配一颗豆上去。跟「忽略背景」开关无关。
+      if(a < 40){ empty[ci] = 1; continue; }
+      if(bgOn){
+        // 接近白色视为背景（用感知亮度 + 低饱和判断）
+        const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+        const sat = mx - mn;
+        const bright = (r*0.299 + g*0.587 + b*0.114);
+        if(bright > 255 - tol && sat < Math.max(14, tol*0.5)) empty[ci] = 1;
+      }
+    }
+  }
+  return { cells, empty };
+}
+
+/* ============================================================
+   八、核心：网格 → 拼豆颜色（k-means + 色卡约束）
+   ============================================================ */
+function nearestPalette(lab, palette){
+  let best = 0, bestD = Infinity;
+  for(let i=0;i<palette.length;i++){
+    const d = labDist2(lab, palette[i].lab);
+    if(d < bestD){ bestD = d; best = i; }
+  }
+  return best;
+}
+
+function quantize(grid, cols, rows, palette, maxK, useDither){
+  const N = cols*rows;
+  const labs = new Float32Array(N*3);
+  const valid = [];
+  for(let i=0;i<N;i++){
+    if(grid.empty[i]) continue;
+    const r = grid.cells[i*4], g = grid.cells[i*4+1], b = grid.cells[i*4+2];
+    const lab = rgbToLab(r|0, g|0, b|0);
+    labs[i*3] = lab[0]; labs[i*3+1] = lab[1]; labs[i*3+2] = lab[2];
+    valid.push(i);
+  }
+  if(valid.length === 0){
+    return { cols, rows, idx:new Int16Array(N).fill(-1), colors:[] };
+  }
+
+  // --- 1. 先全色卡匹配，统计频次，取出现最多的 K 个作为 k-means 初始中心 ---
+  const firstIdx = new Int16Array(N).fill(-1);
+  const freq = new Uint32Array(palette.length);
+  for(const i of valid){
+    const p = nearestPalette([labs[i*3],labs[i*3+1],labs[i*3+2]], palette);
+    firstIdx[i] = p;
+    freq[p]++;
+  }
+  const order = Array.from({length:palette.length},(_,i)=>i)
+    .filter(i=>freq[i]>0)
+    .sort((a,b)=>freq[b]-freq[a]);
+  const K = Math.max(1, Math.min(maxK, order.length));
+
+  let cents = order.slice(0, K).map(pi => {
+    const c = palette[pi].lab;
+    return [c[0], c[1], c[2]];
+  });
+
+  // --- 2. k-means 迭代（LAB 空间） ---
+  const assign = new Int32Array(N).fill(-1);
+  const ITER = 12;
+  for(let it=0; it<ITER; it++){
+    let moved = 0;
+    for(const i of valid){
+      const L = labs[i*3], A = labs[i*3+1], B = labs[i*3+2];
+      let bk = 0, bd = Infinity;
+      for(let k=0;k<cents.length;k++){
+        const c = cents[k];
+        const dL = L-c[0], da = A-c[1], db = B-c[2];
+        const d = dL*dL + da*da + db*db;
+        if(d < bd){ bd = d; bk = k; }
+      }
+      if(assign[i] !== bk){ assign[i] = bk; moved++; }
+    }
+    // 更新中心
+    const sL = new Float64Array(cents.length);
+    const sA = new Float64Array(cents.length);
+    const sB = new Float64Array(cents.length);
+    const cnt = new Uint32Array(cents.length);
+    for(const i of valid){
+      const k = assign[i];
+      sL[k] += labs[i*3]; sA[k] += labs[i*3+1]; sB[k] += labs[i*3+2]; cnt[k]++;
+    }
+    for(let k=0;k<cents.length;k++){
+      if(cnt[k] > 0){
+        cents[k] = [sL[k]/cnt[k], sA[k]/cnt[k], sB[k]/cnt[k]];
+      }
+    }
+    if(moved === 0 && it > 0) break;
+  }
+
+  // --- 3. 每个聚类中心映射到最接近的拼豆色，去重合并 ---
+  const centerToPal = cents.map(c => nearestPalette(c, palette));
+  // 合并映射到同一色号的聚类
+  const usedPal = [];
+  const remap = new Int32Array(cents.length);
+  const seen = new Map();
+  for(let k=0;k<cents.length;k++){
+    const p = centerToPal[k];
+    if(seen.has(p)){ remap[k] = seen.get(p); }
+    else{ seen.set(p, usedPal.length); remap[k] = usedPal.length; usedPal.push(p); }
+  }
+
+  // --- 4. 输出索引 ---
+  const idx = new Int16Array(N).fill(-1);
+  for(const i of valid){
+    idx[i] = remap[assign[i]];
+  }
+
+  // --- 5. 抖动（在最终色板上做 Floyd–Steinberg） ---
+  if(useDither){
+    const pal = usedPal.map(pi => palette[pi]);
+    const work = new Float32Array(N*3);
+    for(let i=0;i<N;i++){
+      work[i*3]   = grid.cells[i*4];
+      work[i*3+1] = grid.cells[i*4+1];
+      work[i*3+2] = grid.cells[i*4+2];
+    }
+    for(let y=0;y<rows;y++){
+      const ltr = (y % 2 === 0);
+      for(let k=0;k<cols;k++){
+        const x = ltr ? k : (cols-1-k);
+        const i = y*cols + x;
+        if(grid.empty[i]) continue;
+        const r = work[i*3], g = work[i*3+1], b = work[i*3+2];
+        const lab = rgbToLab(clamp(r,0,255)|0, clamp(g,0,255)|0, clamp(b,0,255)|0);
+        const p = nearestPalette(lab, pal);
+        idx[i] = p;
+        const pc = pal[p];
+        const er = r - pc.r, eg = g - pc.g, eb = b - pc.b;
+        const nx = ltr ? 1 : -1;
+        /* 误差阻尼 + 钳制：色数少时误差会滚雪球，把浅色区域顶到
+           完全不相干的深色（实测天空里会蹦出游离的褐色点）。
+           阻尼到 0.82 并夹在 [0,255] 内，杂色明显收敛。 */
+        const DAMP = 0.82;
+        const spread = (xx,yy,f)=>{
+          if(xx<0||xx>=cols||yy<0||yy>=rows) return;
+          const j = yy*cols + xx;
+          if(grid.empty[j]) return;
+          work[j*3]   = clamp(work[j*3]   + er*f*DAMP, 0, 255);
+          work[j*3+1] = clamp(work[j*3+1] + eg*f*DAMP, 0, 255);
+          work[j*3+2] = clamp(work[j*3+2] + eb*f*DAMP, 0, 255);
+        };
+        spread(x+nx, y,   7/16);
+        spread(x-nx, y+1, 3/16);
+        spread(x,    y+1, 5/16);
+        spread(x+nx, y+1, 1/16);
+      }
+    }
+  }
+
+  // --- 6. 统计用量 ---
+  const colors = usedPal.map(pi => {
+    const c = palette[pi];
+    return { code:c.code, name:c.name, hex:c.hex, r:c.r, g:c.g, b:c.b, lab:c.lab, count:0 };
+  });
+  for(let i=0;i<N;i++){
+    const k = idx[i];
+    if(k >= 0) colors[k].count++;
+  }
+  const filtered = colors.filter(c=>c.count>0).sort((a,b)=>b.count-a.count);
+  // 重建索引（filter 后编号会变）
+  const pos = new Map();
+  filtered.forEach((c,i)=>pos.set(c.code, i));
+  const finalIdx = new Int16Array(N).fill(-1);
+  for(let i=0;i<N;i++){
+    if(idx[i] >= 0) finalIdx[i] = pos.get(colors[idx[i]].code);
+  }
+
+  return { cols, rows, idx:finalIdx, colors:filtered, empty:grid.empty };
+}
+
+/* ============================================================
+   九、渲染
+   ============================================================ */
+const BEAD_SPRITE_CACHE = new Map();
+
+function makeBeadSprite(hex, size){
+  const key = hex + '_' + size;
+  let sp = BEAD_SPRITE_CACHE.get(key);
+  if(sp) return sp;
+  const pad = Math.max(2, Math.round(size*0.14));
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  const [r,gg,b] = hexToRgb(hex);
+  const cx = size/2, cy = size/2, rad = size/2 - pad;
+
+  // 底部阴影
+  g.beginPath();
+  g.arc(cx, cy + size*0.035, rad, 0, Math.PI*2);
+  g.fillStyle = 'rgba(20,24,32,.16)';
+  g.fill();
+
+  // 主体
+  const grad = g.createRadialGradient(cx - rad*0.34, cy - rad*0.38, rad*0.08, cx, cy, rad*1.06);
+  grad.addColorStop(0, rgbToHex(Math.min(255,r+62), Math.min(255,gg+62), Math.min(255,b+62)));
+  grad.addColorStop(0.52, hex);
+  grad.addColorStop(1, rgbToHex(Math.max(0,r-44), Math.max(0,gg-44), Math.max(0,b-44)));
+  g.beginPath();
+  g.arc(cx, cy, rad, 0, Math.PI*2);
+  g.fillStyle = grad;
+  g.fill();
+
+  // 中心小孔（拼豆特征）
+  g.beginPath();
+  g.arc(cx, cy, Math.max(1, rad*0.17), 0, Math.PI*2);
+  g.fillStyle = 'rgba(0,0,0,.16)';
+  g.fill();
+
+  // 高光
+  const hl = g.createRadialGradient(cx - rad*0.36, cy - rad*0.42, 0, cx - rad*0.36, cy - rad*0.42, rad*0.62);
+  hl.addColorStop(0, 'rgba(255,255,255,.72)');
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.beginPath();
+  g.arc(cx - rad*0.36, cy - rad*0.38, rad*0.62, 0, Math.PI*2);
+  g.fillStyle = hl;
+  g.fill();
+
+  BEAD_SPRITE_CACHE.set(key, c);
+  return c;
+}
+
+function textColorFor(hex){
+  const [r,g,b] = hexToRgb(hex);
+  const lum = (r*0.299 + g*0.587 + b*0.114);
+  return lum > 150 ? 'rgba(0,0,0,.72)' : 'rgba(255,255,255,.94)';
+}
+
+function renderResult(scale){
+  const R = S.result;
+  if(!R || !R.cols) return;
+  const { cols, rows, idx, colors } = R;
+
+  const pad = S.opts.coord ? Math.max(16, Math.round(scale*1.1)) : 0;
+  const W = cols*scale + pad;
+  const H = rows*scale + pad;
+
+  outCanvas.width = W;
+  outCanvas.height = H;
+  const ctx = outCanvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  // 底色
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,W,H);
+
+  const isBead = S.view === 'bead';
+
+  // 成品模式：先铺一块"底板"
+  if(isBead){
+    ctx.fillStyle = '#E8E3DC';
+    ctx.fillRect(pad, pad, cols*scale, rows*scale);
+    // 底板钉点
+    if(scale >= 8){
+      ctx.fillStyle = 'rgba(0,0,0,.05)';
+      for(let y=0;y<rows;y++){
+        for(let x=0;x<cols;x++){
+          ctx.beginPath();
+          ctx.arc(pad + x*scale + scale/2, pad + y*scale + scale/2, Math.max(1, scale*0.07), 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  // 逐格绘制
+  const showCode = S.opts.code && scale >= 26 && cols <= 60 && !isBead;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      const i = y*cols + x;
+      const k = idx[i];
+      if(k < 0) continue;
+      const c = colors[k];
+      const px = pad + x*scale, py = pad + y*scale;
+
+      if(isBead){
+        ctx.drawImage(makeBeadSprite(c.hex, scale), px, py);
+      }else{
+        ctx.fillStyle = c.hex;
+        ctx.fillRect(px, py, scale, scale);
+      }
+    }
+  }
+
+  // 网格线
+  if(S.opts.grid && scale >= 5){
+    ctx.strokeStyle = 'rgba(59,58,55,.16)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let x=0;x<=cols;x++){
+      const px = Math.round(pad + x*scale) + .5;
+      ctx.moveTo(px, pad); ctx.lineTo(px, pad + rows*scale);
+    }
+    for(let y=0;y<=rows;y++){
+      const py = Math.round(pad + y*scale) + .5;
+      ctx.moveTo(pad, py); ctx.lineTo(pad + cols*scale, py);
+    }
+    ctx.stroke();
+  }
+
+  // 分板线（每 29 颗一块标准板）
+  if(S.opts.board){
+    const B = 29;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(169,106,99,.9)';
+    ctx.lineWidth = Math.max(1.5, scale*0.09);
+    ctx.setLineDash([Math.max(4,scale*0.5), Math.max(3,scale*0.35)]);
+    ctx.beginPath();
+    for(let x=B; x<cols; x+=B){
+      const px = pad + x*scale;
+      ctx.moveTo(px, pad); ctx.lineTo(px, pad + rows*scale);
+    }
+    for(let y=B; y<rows; y+=B){
+      const py = pad + y*scale;
+      ctx.moveTo(pad, py); ctx.lineTo(pad + cols*scale, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 色号文字
+  if(showCode){
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '700 ' + Math.round(scale*0.36) + 'px ui-monospace, Consolas, monospace';
+    for(let y=0;y<rows;y++){
+      for(let x=0;x<cols;x++){
+        const i = y*cols + x;
+        const k = idx[i];
+        if(k < 0) continue;
+        const c = colors[k];
+        ctx.fillStyle = textColorFor(c.hex);
+        ctx.fillText(c.code, pad + x*scale + scale/2, pad + y*scale + scale/2 + 1);
+      }
+    }
+  }
+
+  // 坐标
+  if(S.opts.coord && scale >= 7){
+    ctx.fillStyle = '#918D86';
+    ctx.font = '600 ' + Math.round(Math.min(13, scale*0.42)) + 'px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const fs = Math.min(13, scale*0.42);
+    const step = fs > 9 ? 1 : (fs > 6.5 ? 2 : 5);
+    for(let x=0;x<cols;x++){
+      if((x+1) % step !== 0) continue;
+      ctx.fillText(String(x+1), pad + x*scale + scale/2, pad/2);
+    }
+    ctx.textAlign = 'right';
+    for(let y=0;y<rows;y++){
+      if((y+1) % step !== 0) continue;
+      ctx.fillText(String(y+1), pad - 5, pad + y*scale + scale/2);
+    }
+  }
+
+  // 应用缩放显示
+  outCanvas.style.width = Math.round(W * S.zoom) + 'px';
+  outCanvas.style.height = Math.round(H * S.zoom) + 'px';
+}
+
+/* ============================================================
+   十、主流程
+   ============================================================ */
+function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+/* 单格显示倍率：格子越少，每颗豆画得越大。
+   目标是把整张图纸塞进预览框 —— 所以按预览框的真实宽度算，
+   不能写死一个 660：1180px 布局下预览框其实只有 ~516px，
+   写死的话 29×29 也得左右滚动才看得全。
+   开启色号时必须放大到能看清字，这时宁可让预览框滚动。 */
+function computeScale(cols, rows){
+  const box = $('outCanvas') && $('outCanvas').parentElement;
+  const boxW = (box && box.clientWidth) ? box.clientWidth : 660;
+  const avail = Math.max(200, boxW - 26);            // 减掉 .canvas-box 左右 padding
+  let s = clamp(Math.floor(avail / Math.max(cols, rows)), 4, 26);
+  if(S.opts.code && cols <= 60) s = Math.max(s, 30);
+  return s;
+}
+
+function generate(){
+  if(!S.img || S.busy) return;
+  S.busy = true;
+  showLoading('正在排豆…');
+
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      try{
+        // 网格尺寸变了且开着"像素预对齐"：只需重跑对齐那一步
+        reAlignIfNeeded();
+
+        const cols = clamp(parseInt(colsInput.value)||29, 8, 200);
+        const rows = clamp(parseInt(rowsInput.value)||29, 8, 200);
+        colsInput.value = cols; rowsInput.value = rows;
+
+        const pal = S.palette || buildPalette(GENERAL_PALETTE);
+        const grid = computeGrid(cols, rows, fitMode.value, bgRemove.checked, parseInt(bgTol.value));
+        const res = quantize(grid, cols, rows, pal, parseInt(maxColors.value), ditherChk.checked);
+        S.result = res;
+        S.gen++;                      // 每次出图自增，便于外部确认"这一轮跑完了"
+
+        // 自动选择显示倍率（不沿用上一次，否则从 57 改回 29 会一直很小）
+        const scale = computeScale(cols, rows);
+        S.lastScale = scale;
+
+        renderResult(scale);
+        updateStats(res, cols, rows);
+        updateSwatchList(res);
+        updateBoardTip(cols, rows);
+      }catch(e){
+        console.error(e);
+        alert('生成失败：' + e.message);
+      }finally{
+        S.busy = false;
+        hideLoading();
+      }
+    }, 20);
+  });
+}
+
+function updateStats(R, cols, rows){
+  const total = R.colors.reduce((s,c)=>s+c.count, 0);
+  const emptyCells = R.empty ? R.empty.reduce((s,v)=>s+v, 0) : 0;
+  const boards = Math.ceil(cols/29) * Math.ceil(rows/29);
+  $('outInfo').textContent = cols + ' × ' + rows + ' 颗';
+  $('stats').innerHTML = `
+    <div class="stat"><div class="k">图纸尺寸</div><div class="v">${cols} × ${rows}<small>颗</small></div></div>
+    <div class="stat"><div class="k">总用豆量</div><div class="v">${total}<small>颗</small></div></div>
+    <div class="stat"><div class="k">使用颜色</div><div class="v">${R.colors.length}<small>种</small></div></div>
+    <div class="stat"><div class="k">需拼豆板</div><div class="v">${boards}<small>块</small></div></div>
+  `;
+  const bTip = $('boardTip');
+  if(bTip){
+    if(boards > 1){
+      bTip.innerHTML = `📐 图纸超过一块标准板（29×29），需要 <b>${boards} 块</b>拼豆板。图纸中的<b>红色虚线</b>就是分板位置，拼完一块再拼下一块，最后熨烫拼接。`;
+    }else{
+      bTip.innerHTML = `📐 尺寸在一块标准板（29×29）以内，可直接在单块板上完成。`;
+    }
+  }
+}
+
+function updateSwatchList(R){
+  const box = $('swatchRows');
+  const total = R.colors.reduce((s,c)=>s+c.count, 0);
+  box.innerHTML = R.colors.map(c=>{
+    const pct = total ? (c.count/total*100).toFixed(1) : '0';
+    return `<div class="sw-row">
+      <div class="sw-chip" style="background:${c.hex}"></div>
+      <div class="sw-code">${c.code}</div>
+      <div class="sw-name">${c.name} <span style="color:var(--ink-3);font-size:11.5px;">${c.hex}</span></div>
+      <div class="sw-count">${c.count}<small> 颗 · ${pct}%</small></div>
+    </div>`;
+  }).join('');
+}
+
+function updateBoardTip(){ /* 已并入 updateStats */ }
+
+/* ============================================================
+   十一、导出
+   ============================================================ */
+function downloadCanvas(canvas, filename){
+  canvas.toBlob(blob=>{
+    if(!blob){ alert('导出失败，请重试'); return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  }, 'image/png');
+}
+
+function exportPattern(beadMode){
+  const R = S.result;
+  if(!R) return;
+  const prevView = S.view;
+  const prevZoom = S.zoom;
+  const prevGrid = S.opts.grid, prevCoord = S.opts.coord, prevCode = S.opts.code, prevBoard = S.opts.board;
+  S.view = beadMode ? 'bead' : 'pattern';
+  S.zoom = 1;
+  if(!beadMode){ S.opts.grid = true; S.opts.coord = true; S.opts.board = true; }
+
+  const scale = beadMode ? 22 : Math.max(14, Math.min(34, Math.floor(1400 / Math.max(R.cols, R.rows))));
+  renderResult(scale);
+  const name = '拼豆图纸_' + R.cols + 'x' + R.rows + (beadMode ? '_成品' : '') + '.png';
+  downloadCanvas(outCanvas, name);
+
+  // 还原
+  S.view = prevView; S.zoom = prevZoom;
+  S.opts.grid = prevGrid; S.opts.coord = prevCoord; S.opts.code = prevCode; S.opts.board = prevBoard;
+  renderResult(S.lastScale || 14);
+}
+
+function exportCsv(){
+  const R = S.result;
+  if(!R) return;
+  const total = R.colors.reduce((s,c)=>s+c.count, 0);
+  let csv = '\uFEFF色号,颜色名称,HEX,用量(颗),占比,建议备量(+8%)\n';
+  for(const c of R.colors){
+    const pct = (c.count/total*100).toFixed(2) + '%';
+    csv += `${c.code},${c.name},${c.hex},${c.count},${pct},${Math.ceil(c.count*1.08)}\n`;
+  }
+  csv += `合计,,,${total},100%,${Math.ceil(total*1.08)}\n`;
+  csv += `图纸尺寸,${R.cols} × ${R.rows} 颗,使用颜色数,${R.colors.length} 种,需拼豆板,${Math.ceil(R.cols/29)*Math.ceil(R.rows/29)} 块\n`;
+
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '拼豆用料清单_' + R.cols + 'x' + R.rows + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+
+function copyList(){
+  const R = S.result;
+  if(!R) return;
+  const total = R.colors.reduce((s,c)=>s+c.count, 0);
+  let t = `拼豆用料清单（${R.cols}×${R.rows}，共 ${total} 颗，${R.colors.length} 色）\n`;
+  t += R.colors.map(c=>`${c.code} ${c.name} — ${c.count} 颗`).join('\n');
+  navigator.clipboard.writeText(t).then(
+    ()=>toast('清单已复制到剪贴板'),
+    ()=>alert('复制失败，请手动选择清单文字复制')
+  );
+}
+
+function toast(msg){
+  const d = document.createElement('div');
+  d.textContent = msg;
+  d.style.cssText = 'position:fixed;left:50%;bottom:40px;transform:translateX(-50%);' +
+    'background:#3B3A37;color:#fff;padding:10px 20px;border-radius:10px;font-size:13.5px;' +
+    'font-weight:600;z-index:200;box-shadow:0 6px 24px rgba(0,0,0,.24);opacity:0;transition:opacity .2s';
+  document.body.appendChild(d);
+  requestAnimationFrame(()=>d.style.opacity='1');
+  setTimeout(()=>{ d.style.opacity='0'; setTimeout(()=>d.remove(), 240); }, 1900);
+}
+
+/* ============================================================
+   十二、示例图
+   ============================================================ */
+function makeDemoImage(){
+  const c = document.createElement('canvas');
+  c.width = 480; c.height = 480;
+  const g = c.getContext('2d');
+
+  // 天空渐变背景
+  const bg = g.createLinearGradient(0,0,0,480);
+  bg.addColorStop(0,'#8ed1f5');
+  bg.addColorStop(0.62,'#cfeaf7');
+  bg.addColorStop(1,'#f7e6c8');
+  g.fillStyle = bg; g.fillRect(0,0,480,480);
+
+  // 太阳
+  const sun = g.createRadialGradient(360,110,8,360,110,74);
+  sun.addColorStop(0,'#fff3b0'); sun.addColorStop(0.5,'#ffd93b'); sun.addColorStop(1,'rgba(255,200,40,0)');
+  g.fillStyle = sun; g.beginPath(); g.arc(360,110,74,0,Math.PI*2); g.fill();
+
+  // 云
+  g.fillStyle = '#ffffff';
+  const cloud = (x,y,s)=>{
+    g.beginPath();
+    g.arc(x, y, 26*s, 0, Math.PI*2);
+    g.arc(x+30*s, y-10*s, 32*s, 0, Math.PI*2);
+    g.arc(x+66*s, y+2*s, 24*s, 0, Math.PI*2);
+    g.arc(x+34*s, y+14*s, 26*s, 0, Math.PI*2);
+    g.fill();
+  };
+  cloud(70,110,1); cloud(240,70,0.72);
+
+  // 山
+  g.fillStyle = '#5aa86b';
+  g.beginPath(); g.moveTo(-40,400); g.lineTo(130,232); g.lineTo(300,400); g.closePath(); g.fill();
+  g.fillStyle = '#3f8a54';
+  g.beginPath(); g.moveTo(180,400); g.lineTo(330,258); g.lineTo(520,400); g.closePath(); g.fill();
+
+  // 草地
+  g.fillStyle = '#7ec46f'; g.fillRect(0,392,480,88);
+  g.fillStyle = '#69b35c'; g.fillRect(0,420,480,60);
+
+  // 树
+  g.fillStyle = '#8b5a2b'; g.fillRect(96,346,16,50);
+  g.fillStyle = '#2f8f4e';
+  g.beginPath(); g.arc(104,336,42,0,Math.PI*2); g.fill();
+  g.fillStyle = '#3ea85c';
+  g.beginPath(); g.arc(88,326,30,0,Math.PI*2); g.fill();
+
+  // 小屋
+  g.fillStyle = '#f2efe6'; g.fillRect(300,330,110,66);
+  g.fillStyle = '#c94f3d';
+  g.beginPath(); g.moveTo(288,332); g.lineTo(355,286); g.lineTo(422,332); g.closePath(); g.fill();
+  g.fillStyle = '#8b5a2b'; g.fillRect(342,362,32,34);
+  g.fillStyle = '#7fc7e8'; g.fillRect(312,344,28,24);
+
+  // 前景花
+  const flower = (x,y,col)=>{
+    g.fillStyle = col;
+    for(let i=0;i<5;i++){
+      const a = i/5*Math.PI*2;
+      g.beginPath(); g.arc(x+Math.cos(a)*7, y+Math.sin(a)*7, 6, 0, Math.PI*2); g.fill();
+    }
+    g.fillStyle = '#ffe066';
+    g.beginPath(); g.arc(x,y,4.5,0,Math.PI*2); g.fill();
+  };
+  flower(52,452,'#ff6b93'); flower(150,466,'#ffd93b'); flower(430,448,'#c77dff');
+  flower(258,458,'#ff8a80'); flower(390,470,'#8ecae6');
+
+  return c;
+}
+
+/* ============================================================
+   十三、图片优化引擎
+   ------------------------------------------------------------
+   两条路线：
+     local —— 内置算法，免配置、离线可用，图片不出本机
+     ai    —— 调第三方模型；AI 擅长的（去背/卡通化/调色）交给它，
+              纯几何的（像素预对齐/锐化/降噪）仍走本地
+   执行顺序固定，保证同一组选项每次结果一致：
+     降噪 → 去背 → 自动调色 → 卡通化 → 锐化 → 像素预对齐
+   （像素预对齐必须放最后，它决定每个格子的最终颜色）
+   ============================================================ */
+
+function makeCanvas(w, h){
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(w));
+  c.height = Math.max(1, Math.round(h));
+  return c;
+}
+
+/** 取任意图源的宽高（canvas / ImageBitmap / HTMLImageElement 都兼容） */
+function imgDims(x){
+  return [
+    x.width || x.naturalWidth || 1,
+    x.height || x.naturalHeight || 1
+  ];
+}
+
+/** 把任意图源按指定尺寸画到新画布（高质量重采样） */
+function drawTo(src, w, h, smooth){
+  const c = makeCanvas(w, h);
+  const g = c.getContext('2d', { willReadFrequently:true });
+  g.imageSmoothingEnabled = smooth !== false;
+  g.imageSmoothingQuality = 'high';
+  g.clearRect(0, 0, c.width, c.height);
+  g.drawImage(src, 0, 0, c.width, c.height);
+  return c;
+}
+
+/* ---------- 去背：边框估色 + 连通域洪泛 + 羽化 ---------- */
+function countOpaque(data){
+  let n = 0;
+  for (let i = 3; i < data.length; i += 4) if (data[i] >= 20) n++;
+  return n;
+}
+
+function opRemoveBg(imgData, w, h, tol){
+  const d = imgData.data, n = w * h;
+  // 1. 用 2px 边框估计背景色
+  let sr = 0, sg = 0, sb = 0, c = 0;
+  const sample = (x, y) => {
+    const p = (y * w + x) * 4;
+    if (d[p + 3] < 20) return;
+    sr += d[p]; sg += d[p + 1]; sb += d[p + 2]; c++;
+  };
+  for (let x = 0; x < w; x++) for (let k = 0; k < 2; k++) { sample(x, k); sample(x, h - 1 - k); }
+  for (let y = 0; y < h; y++) for (let k = 0; k < 2; k++) { sample(k, y); sample(w - 1 - k, y); }
+  if (!c) return imgData;
+  const br = sr / c, bg = sg / c, bb = sb / c;
+
+  // 2. 逐像素判定"像背景"
+  const cand = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = i * 4;
+    if (d[p + 3] < 20) { cand[i] = 1; continue; }
+    if (Math.abs(d[p] - br) <= tol && Math.abs(d[p + 1] - bg) <= tol && Math.abs(d[p + 2] - bb) <= tol) {
+      cand[i] = 1;
+    }
+  }
+
+  // 3. 只删与画面边缘连通的背景，避免把主体内部的同色区域一起挖掉
+  const isBg = new Uint8Array(n);
+  const stack = [];
+  const seed = (i) => { if (cand[i] && !isBg[i]) { isBg[i] = 1; stack.push(i); } };
+  for (let x = 0; x < w; x++) { seed(x); seed((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { seed(y * w); seed(y * w + w - 1); }
+  while (stack.length) {
+    const i = stack.pop();
+    const x = i % w, y = (i - x) / w;
+    if (x > 0)     seed(i - 1);
+    if (x < w - 1) seed(i + 1);
+    if (y > 0)     seed(i - w);
+    if (y < h - 1) seed(i + w);
+  }
+
+  // 4. 羽化 1px，避免锯齿硬边
+  const a0 = new Float32Array(n);
+  for (let i = 0; i < n; i++) a0[i] = isBg[i] ? 0 : 255;
+  const a1 = new Float32Array(n);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let s = 0, k = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const yy = y + dy; if (yy < 0 || yy >= h) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx; if (xx < 0 || xx >= w) continue;
+          s += a0[yy * w + xx]; k++;
+        }
+      }
+      a1[y * w + x] = s / k;
+    }
+  }
+  for (let i = 0; i < n; i++) d[i * 4 + 3] = Math.round(a1[i] * (d[i * 4 + 3] / 255));
+  return imgData;
+}
+
+/* ---------- 自动调色：灰世界白平衡 + 自动色阶 + S曲线 + 饱和 ---------- */
+function opAutoColor(imgData, w, h){
+  const d = imgData.data, n = w * h;
+  let sr = 0, sg = 0, sb = 0, c = 0;
+  for (let i = 0; i < n; i++) {
+    const p = i * 4; if (d[p + 3] < 20) continue;
+    sr += d[p]; sg += d[p + 1]; sb += d[p + 2]; c++;
+  }
+  if (!c) return imgData;
+
+  // 白平衡强度只取 60%，全量容易把暖色调照片拉成惨白
+  const mr = sr / c, mg = sg / c, mb = sb / c;
+  const gray = (mr + mg + mb) / 3;
+  const WB = 0.6;
+  const kr = 1 + ((gray / (mr || 1)) - 1) * WB;
+  const kg = 1 + ((gray / (mg || 1)) - 1) * WB;
+  const kb = 1 + ((gray / (mb || 1)) - 1) * WB;
+
+  // 逐通道 0.4% / 99.6% 分位拉伸
+  const hist = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
+  for (let i = 0; i < n; i++) {
+    const p = i * 4; if (d[p + 3] < 20) continue;
+    hist[0][clamp(Math.round(d[p] * kr), 0, 255)]++;
+    hist[1][clamp(Math.round(d[p + 1] * kg), 0, 255)]++;
+    hist[2][clamp(Math.round(d[p + 2] * kb), 0, 255)]++;
+  }
+  const lo = [0, 0, 0], hi = [255, 255, 255];
+  for (let ch = 0; ch < 3; ch++) {
+    const H = hist[ch];
+    const loN = c * 0.004, hiN = c * 0.996;
+    let acc = 0;
+    for (let v = 0; v < 256; v++) { acc += H[v]; if (acc >= loN) { lo[ch] = v; break; } }
+    acc = 0;
+    for (let v = 0; v < 256; v++) { acc += H[v]; if (acc >= hiN) { hi[ch] = v; break; } }
+    if (hi[ch] - lo[ch] < 12) { lo[ch] = 0; hi[ch] = 255; }   // 对比本来就很低就别硬拉
+  }
+
+  const lut = [[], [], []];
+  for (let ch = 0; ch < 3; ch++) {
+    const L = lo[ch], span = (hi[ch] - lo[ch]) || 1;
+    for (let v = 0; v < 256; v++) {
+      const t = clamp((v - L) / span, 0, 1);
+      const s = t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t);   // smoothstep
+      lut[ch][v] = (t + (s - t) * 0.55) * 255;
+    }
+  }
+
+  const SAT = 1.18;
+  for (let i = 0; i < n; i++) {
+    const p = i * 4; if (d[p + 3] < 20) continue;
+    let r = lut[0][clamp(Math.round(d[p] * kr), 0, 255)];
+    let g = lut[1][clamp(Math.round(d[p + 1] * kg), 0, 255)];
+    let b = lut[2][clamp(Math.round(d[p + 2] * kb), 0, 255)];
+    const lum = r * 0.299 + g * 0.587 + b * 0.114;
+    d[p]     = clamp(lum + (r - lum) * SAT, 0, 255);
+    d[p + 1] = clamp(lum + (g - lum) * SAT, 0, 255);
+    d[p + 2] = clamp(lum + (b - lum) * SAT, 0, 255);
+  }
+  return imgData;
+}
+
+/* ---------- 双边滤波：保边平滑，卡通化/降噪的地基 ---------- */
+function bilateralFilter(imgData, w, h, radius, sigmaColor){
+  const d = imgData.data;
+  const src = new Uint8ClampedArray(d);       // 必须读快照，否则会被写坏
+  const r = radius;
+  const side = 2 * r + 1, kn = side * side;
+
+  /* 空间核用扁平 TypedArray：
+     原来是普通数组里塞 (dx,dy,w) 三元组，每次取样走 sp[k]/sp[k+1]/sp[k+2]
+     三次装箱数组访问。改成 Int32Array（相对下标偏移）+ Float32Array（权重），
+     热循环里只剩连续内存读。 */
+  const kOff = new Int32Array(kn);
+  const kDx  = new Int8Array(kn);
+  const kDy  = new Int8Array(kn);
+  const kW   = new Float32Array(kn);
+  const sigS2 = 2 * 1.5 * 1.5;
+  let ki = 0;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      kDx[ki] = dx; kDy[ki] = dy;
+      kOff[ki] = (dy * w + dx) * 4;
+      kW[ki] = Math.exp(-(dx * dx + dy * dy) / sigS2);
+      ki++;
+    }
+  }
+
+  /* 颜色权重查表：直接调 Math.exp 的话 720² × 49 次要 2500 万次，
+     实测要好几秒。色差平方最大 3×255² = 195075，量化成 1024 档够用。 */
+  const LUTN = 1024, MAXD2 = 195075, LUTMAX = LUTN - 1;
+  const wcLut = new Float32Array(LUTN);
+  const sc2 = 2 * sigmaColor * sigmaColor;
+  for (let i = 0; i < LUTN; i++) wcLut[i] = Math.exp(-(i / LUTMAX * MAXD2) / sc2);
+  const lutScale = LUTMAX / MAXD2;            // 热循环里用乘法，除法慢好几倍
+
+  // 四周 r 像素之内才可能越界，内部区（绝大多数像素）整段免判断
+  const xIn0 = r, xIn1 = w - r, yIn0 = r, yIn1 = h - r;
+
+  for (let y = 0; y < h; y++) {
+    const rowIn = (y >= yIn0 && y < yIn1);
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const cr = src[i], cg = src[i + 1], cb = src[i + 2];
+      let ar = 0, ag = 0, ab = 0, sw = 0;
+
+      if (rowIn && x >= xIn0 && x < xIn1) {
+        for (let k = 0; k < kn; k++) {
+          const j = i + kOff[k];
+          const dr = src[j] - cr, dg = src[j + 1] - cg, db = src[j + 2] - cb;
+          let idx = ((dr * dr + dg * dg + db * db) * lutScale) | 0;
+          if (idx > LUTMAX) idx = LUTMAX;
+          const ww = kW[k] * wcLut[idx];
+          ar += src[j] * ww; ag += src[j + 1] * ww; ab += src[j + 2] * ww; sw += ww;
+        }
+      } else {
+        for (let k = 0; k < kn; k++) {
+          const xx = x + kDx[k], yy = y + kDy[k];
+          if (xx < 0 || xx >= w || yy < 0 || yy >= h) continue;
+          const j = i + kOff[k];
+          const dr = src[j] - cr, dg = src[j + 1] - cg, db = src[j + 2] - cb;
+          let idx = ((dr * dr + dg * dg + db * db) * lutScale) | 0;
+          if (idx > LUTMAX) idx = LUTMAX;
+          const ww = kW[k] * wcLut[idx];
+          ar += src[j] * ww; ag += src[j + 1] * ww; ab += src[j + 2] * ww; sw += ww;
+        }
+      }
+      if (sw > 0) {
+        d[i] = ar / sw; d[i + 1] = ag / sw; d[i + 2] = ab / sw;
+      }
+    }
+  }
+  return imgData;
+}
+
+/* ---------- 色阶量化：把连续色压成有限色块 ---------- */
+function posterize(imgData, w, h, levels){
+  const d = imgData.data;
+  const step = 255 / (levels - 1);
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 20) continue;
+    d[i]     = Math.round(Math.round(d[i] / step) * step);
+    d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step);
+    d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step);
+  }
+  return imgData;
+}
+
+/* ---------- Sobel 描边：给卡通化勾轮廓 ---------- */
+function edgeOverlay(imgData, w, h, strength){
+  const d = imgData.data;
+  const gray = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    const p = i * 4;
+    gray[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114;
+  }
+  const THR = 88, SPAN = 120;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const gx = -gray[i - w - 1] - 2 * gray[i - 1] - gray[i + w - 1]
+               + gray[i - w + 1] + 2 * gray[i + 1] + gray[i + w + 1];
+      const gy = -gray[i - w - 1] - 2 * gray[i - w] - gray[i - w + 1]
+               + gray[i + w - 1] + 2 * gray[i + w] + gray[i + w + 1];
+      const mag = Math.sqrt(gx * gx + gy * gy);
+      if (mag <= THR) continue;
+      const k = clamp((mag - THR) / SPAN, 0, 1) * strength;
+      const p = i * 4;
+      d[p]     = d[p]     * (1 - k) + 26 * k;
+      d[p + 1] = d[p + 1] * (1 - k) + 26 * k;
+      d[p + 2] = d[p + 2] * (1 - k) + 30 * k;
+    }
+  }
+  return imgData;
+}
+
+/* ---------- 可分离高斯模糊（锐化要用） ---------- */
+function boxBlur3(src, w, h){
+  const out = new Float32Array(w * h * 3);
+  const K = [1, 2, 1], S = 4;
+  const tmp = new Float32Array(w * h * 3);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let k = -1; k <= 1; k++) {
+        const xx = clamp(x + k, 0, w - 1);
+        const p = (y * w + xx) * 4, wt = K[k + 1];
+        r += src[p] * wt; g += src[p + 1] * wt; b += src[p + 2] * wt;
+      }
+      const o = (y * w + x) * 3;
+      tmp[o] = r / S; tmp[o + 1] = g / S; tmp[o + 2] = b / S;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let r = 0, g = 0, b = 0;
+      for (let k = -1; k <= 1; k++) {
+        const yy = clamp(y + k, 0, h - 1);
+        const o = (yy * w + x) * 3, wt = K[k + 1];
+        r += tmp[o] * wt; g += tmp[o + 1] * wt; b += tmp[o + 2] * wt;
+      }
+      const o = (y * w + x) * 3;
+      out[o] = r / S; out[o + 1] = g / S; out[o + 2] = b / S;
+    }
+  }
+  return out;
+}
+
+/* ---------- USM 锐化 ---------- */
+function unsharp(imgData, w, h, amount){
+  const d = imgData.data;
+  const blur = boxBlur3(d, w, h);
+  for (let i = 0; i < w * h; i++) {
+    const p = i * 4; if (d[p + 3] < 20) continue;
+    const o = i * 3;
+    for (let c = 0; c < 3; c++) {
+      const v = d[p + c], b = blur[o + c];
+      d[p + c] = clamp(v + (v - b) * amount, 0, 255);
+    }
+  }
+  return imgData;
+}
+
+/* ---------- 像素预对齐：先落到网格，再最近邻放大 ----------
+   这一步决定了每个格子拿到的是"一个确定的颜色"而不是几十个像素的平均，
+   是消除锯齿最有效的一招。输出尺寸与网格同比例，所以后续排豆怎么适配都一样。 */
+function pixelAlign(src, cols, rows, fit, outW, outH){
+  const small = makeCanvas(cols, rows);
+  const sg = small.getContext('2d');
+  sg.imageSmoothingEnabled = true;
+  sg.imageSmoothingQuality = 'high';
+  sg.clearRect(0, 0, cols, rows);
+
+  const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+  const sAsp = sw / sh, dAsp = cols / rows;
+  let dw, dh, dx, dy;
+  if (fit === 'stretch') { dw = cols; dh = rows; dx = 0; dy = 0; }
+  else if (fit === 'contain') {
+    if (sAsp > dAsp) { dw = cols; dh = cols / sAsp; } else { dh = rows; dw = rows * sAsp; }
+    dx = (cols - dw) / 2; dy = (rows - dh) / 2;
+  } else {
+    if (sAsp > dAsp) { dh = rows; dw = rows * sAsp; } else { dw = cols; dh = cols / sAsp; }
+    dx = (cols - dw) / 2; dy = (rows - dh) / 2;
+  }
+  sg.drawImage(src, dx, dy, dw, dh);
+
+  const big = makeCanvas(outW, outH);
+  const bg2 = big.getContext('2d', { willReadFrequently:true });
+  bg2.imageSmoothingEnabled = false;          // 最近邻，保住格子边界
+  bg2.drawImage(small, 0, 0, cols, rows, 0, 0, outW, outH);
+  return big;
+}
+
+/* ---------- 本地流水线 ---------- */
+const OP_ORDER = ['denoise', 'bg', 'color', 'cartoon', 'sharpen', 'align'];
+
+async function runLocalPipeline(src, chips, cfg, cols, rows){
+  const cap = cfg.workRes;
+  const sw = src.width || src.naturalWidth, sh = src.height || src.naturalHeight;
+  const asp = sw / sh;
+  let w, h;
+  if (asp >= 1) { w = Math.min(cap, sw); h = Math.round(w / asp); }
+  else { h = Math.min(cap, sh); w = Math.round(h * asp); }
+  w = Math.max(8, w); h = Math.max(8, h);
+
+  let canvas = drawTo(src, w, h, true);
+  let g = canvas.getContext('2d', { willReadFrequently:true });
+  const needData = () => g.getImageData(0, 0, canvas.width, canvas.height);
+
+  // 降噪 / 卡通化都要双边滤波，合并成一次，省一半时间
+  const wantDenoise = chips.includes('denoise');
+  const wantCartoon = chips.includes('cartoon');
+  if (wantDenoise || wantCartoon) {
+    const rad = wantCartoon ? 3 : 2;
+    const sig = wantCartoon ? 42 : 26;
+    g.putImageData(bilateralFilter(needData(), canvas.width, canvas.height, rad, sig), 0, 0);
+    await nextTick();
+  }
+  const notes = [];
+  if (chips.includes('bg')) {
+    const id = needData();
+    const before = countOpaque(id.data);
+    opRemoveBg(id, canvas.width, canvas.height, cfg.cutTol);
+    const cut = before ? 1 - countOpaque(id.data) / before : 0;
+    g.putImageData(id, 0, 0);
+    await nextTick();
+    // 边框估色这套只对纯色／浅色背景有效；复杂背景下一像素都删不掉，
+    // 这时候必须说清楚，不能让用户以为「去背成功了但看不出效果」。
+    if (cut < 0.01) {
+      notes.push('「去背」没找到明显背景——这张图的背景颜色比较杂，'
+        + '它只擅长纯色或浅色背景。可以改用「卡通化」，或调低「去背容差」再试。');
+    }
+  }
+  if (chips.includes('color')) {
+    g.putImageData(opAutoColor(needData(), canvas.width, canvas.height), 0, 0);
+    await nextTick();
+  }
+  if (wantCartoon) {
+    // 强度 1/2/3 → 色阶 10/7/5，描边强度 0.5/0.72/0.9
+    const lv = cfg.cartoonLv;
+    const levels = lv === 1 ? 10 : lv === 2 ? 7 : 5;
+    const edgeStr = lv === 1 ? 0.5 : lv === 2 ? 0.72 : 0.9;
+    let id = needData();
+    id = posterize(id, canvas.width, canvas.height, levels);
+    id = edgeOverlay(id, canvas.width, canvas.height, edgeStr);
+    g.putImageData(id, 0, 0);
+    await nextTick();
+  }
+  if (chips.includes('sharpen')) {
+    g.putImageData(unsharp(needData(), canvas.width, canvas.height, 0.7), 0, 0);
+    await nextTick();
+  }
+
+  let preAlign = canvas;                       // 缓存，网格尺寸变了只需重跑对齐
+  if (chips.includes('align')) {
+    canvas = pixelAlign(canvas, cols, rows, fitMode.value, canvas.width, canvas.height);
+  }
+  return { canvas, preAlign, notes };
+}
+
+function nextTick(){
+  return new Promise(r => setTimeout(r, 0));
+}
+
+/* ---------- AI 引擎 ---------- */
+const AI_DEFAULTS = {
+  openai:   { endpoint: 'https://api.openai.com/v1/images/edits', model: 'gpt-image-1' },
+  removebg: { endpoint: 'https://api.remove.bg/v1.0/removebg',     model: '' },
+  custom:   { endpoint: '',                                        model: '' }
+};
+
+function buildAIPrompt(chips){
+  const p = [];
+  if (chips.includes('bg'))      p.push('remove the background completely, keep only the main subject with clean edges and transparent background');
+  if (chips.includes('cartoon')) p.push('convert into a clean flat cartoon illustration: simplified shapes, flat solid colors, bold outlines, no gradients, no texture, no shading');
+  if (chips.includes('color'))   p.push('improve color balance, contrast and saturation so the palette is vivid and clearly separated');
+  p.push('the result must be easy to convert into a perler bead / fuse bead pixel pattern: clear silhouette, large flat color regions, limited distinct colors, no noise');
+  return p.join('; ');
+}
+
+function applyProxy(url, proxy){
+  if (!proxy) return url;
+  return proxy.includes('{url}') ? proxy.replace('{url}', encodeURIComponent(url)) : proxy + encodeURIComponent(url);
+}
+
+function canvasToBlob(canvas){
+  return new Promise((res, rej) => canvas.toBlob(b => b ? res(b) : rej(new Error('画布导出失败')), 'image/png'));
+}
+
+/** 从任意响应里把图片抠出来：二进制 / base64 / URL 都认 */
+async function extractImage(res){
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  if (ct.startsWith('image/')) return await res.blob();
+
+  const text = await res.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch (e) { /* 不是 JSON */ }
+
+  if (!json) throw new Error('接口返回的不是图片也不是 JSON：' + text.slice(0, 160));
+
+  const b64 = findDeep(json, ['b64_json', 'b64', 'base64', 'image_base64']);
+  if (b64) return b64ToBlob(b64);
+  const url = findDeep(json, ['url', 'image_url', 'output']);
+  if (typeof url === 'string' && /^https?:\/\//.test(url)) {
+    const r2 = await fetch(url);
+    if (!r2.ok) throw new Error('下载返回的图片失败 HTTP ' + r2.status);
+    return await r2.blob();
+  }
+  throw new Error('接口返回里没找到图片字段：' + text.slice(0, 160));
+}
+
+function findDeep(obj, keys, depth){
+  depth = depth || 0;
+  if (depth > 6 || obj == null) return null;
+  if (typeof obj === 'string') return null;
+  if (Array.isArray(obj)) {
+    for (const v of obj) { const r = findDeep(v, keys, depth + 1); if (r) return r; }
+    return null;
+  }
+  if (typeof obj === 'object') {
+    for (const k of keys) {
+      const v = obj[k];
+      if (typeof v === 'string' && v.length > 24) return v;
+    }
+    for (const k of Object.keys(obj)) {
+      const r = findDeep(obj[k], keys, depth + 1); if (r) return r;
+    }
+  }
+  return null;
+}
+
+function b64ToBlob(b64){
+  const clean = b64.replace(/^data:image\/\w+;base64,/, '');
+  const bin = atob(clean);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: 'image/png' });
+}
+
+async function runAIPipeline(src, chips, cfg, cols, rows){
+  const ai = S.ai;
+  if (!ai.key) throw new Error('请先填写 API Key');
+
+  const endpoint = applyProxy(ai.endpoint || AI_DEFAULTS[ai.provider].endpoint, ai.proxy);
+  if (!endpoint) throw new Error('请填写接口地址');
+
+  // 送进模型前先压到合理尺寸，太大既慢又费 token
+  const [sw, sh] = imgDims(src);
+  const cap = Math.min(cfg.workRes, 1024);
+  const sc = Math.min(1, cap / Math.max(sw, sh));
+  const blob = await canvasToBlob(drawTo(src, sw * sc, sh * sc, true));
+
+  let res;
+  if (ai.provider === 'removebg') {
+    const fd = new FormData();
+    fd.append('image_file', blob, 'image.png');
+    fd.append('size', 'auto');
+    res = await fetch(endpoint, { method: 'POST', headers: { 'X-Api-Key': ai.key }, body: fd });
+  } else if (ai.provider === 'openai') {
+    const fd = new FormData();
+    fd.append('image', blob, 'image.png');
+    fd.append('prompt', buildAIPrompt(chips));
+    fd.append('model', ai.model || AI_DEFAULTS.openai.model);
+    fd.append('n', '1');
+    fd.append('size', '1024x1024');
+    fd.append('response_format', 'b64_json');
+    res = await fetch(endpoint, { method: 'POST', headers: { 'Authorization': 'Bearer ' + ai.key }, body: fd });
+  } else {
+    const fd = new FormData();
+    fd.append('image', blob, 'image.png');
+    fd.append('prompt', buildAIPrompt(chips));
+    if (ai.model) fd.append('model', ai.model);
+    res = await fetch(endpoint, { method: 'POST', headers: { 'Authorization': 'Bearer ' + ai.key }, body: fd });
+  }
+
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.text()).slice(0, 300); } catch (e) { /* ignore */ }
+    if (res.status === 0 || res.type === 'opaque') {
+      throw new Error('请求被浏览器拦截（多半是 CORS）。第三方接口通常不允许网页直连，请自建代理或填写「CORS 代理前缀」。');
+    }
+    throw new Error('接口返回 HTTP ' + res.status + (detail ? '：' + detail : ''));
+  }
+
+  const outBlob = await extractImage(res);
+  const bmp = await createImageBitmap(outBlob);
+
+  // AI 干完擅长的部分，纯几何的活仍由本地接手
+  const geo = chips.filter(c => c === 'align' || c === 'sharpen' || c === 'denoise');
+  const [bw, bh] = imgDims(bmp);
+  if (!geo.length) return { canvas: drawTo(bmp, bw, bh, true), preAlign: null, notes: [] };
+
+  const cap2 = Math.min(cfg.workRes, Math.max(bw, bh));
+  const c0 = drawTo(bmp, bw * (cap2 / Math.max(bw, bh)), bh * (cap2 / Math.max(bw, bh)), true);
+  const g = c0.getContext('2d', { willReadFrequently:true });
+  if (geo.includes('denoise')) {
+    g.putImageData(bilateralFilter(g.getImageData(0,0,c0.width,c0.height), c0.width, c0.height, 2, 26), 0, 0);
+  }
+  if (geo.includes('sharpen')) {
+    g.putImageData(unsharp(g.getImageData(0,0,c0.width,c0.height), c0.width, c0.height, 0.7), 0, 0);
+  }
+  const preAlign = c0;
+  const out = geo.includes('align') ? pixelAlign(c0, cols, rows, fitMode.value, c0.width, c0.height) : c0;
+  return { canvas: out, preAlign, notes: [] };
+}
+
+/* ---------- 编排 ---------- */
+function setOpStatus(kind, text){
+  const el = $('opStatus');
+  el.className = 'op-status ' + kind;
+  el.innerHTML = '<span class="dot2"></span><span>' + text + '</span>';
+}
+
+/** 优化过程中的「说了但没做到」要讲明白，不能静默 */
+function setOpHint(notes){
+  const el = $('opHint');
+  if (!notes || !notes.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="em">💡</span><span>' + notes.join('<br>') + '</span>';
+  el.classList.remove('hidden');
+}
+
+/* ---------- 编排：实时预览 + 显式应用 ---------- */
+
+/* 实时预览的分辨率上限。720px 的双边滤波约 260ms，整条流水线 150ms 上下，
+   勾一下就出图；1000px 要 400ms+，大图上接近 1s，就没法"跟着手走"了。
+   想看完整分辨率就点「高清重跑」。 */
+const PREVIEW_MAX = 720;
+let previewTimer = 0;
+let previewToken = 0;      // 竞态令牌：连点多次只认最后一次的结果
+
+/** 让浏览器先把「预览中」画出来，再开始跑同步的重活 */
+function yieldToPaint(){
+  return new Promise(r => requestAnimationFrame(()=>setTimeout(r, 0)));
+}
+
+/** 实时预览入口：勾选方案 / 改参数 / 切引擎都走这里，防抖合并连续操作 */
+function schedulePreview(delay){
+  if(!S.img) return;
+  clearTimeout(previewTimer);
+  const real = S.opt.chips.filter(c => c !== 'none');
+
+  // 方案清空 → 立刻回到原图，不用等防抖
+  if(!real.length){ resetOptimization(); return; }
+
+  // AI 引擎花的是用户自己的额度，不能跟着勾选一路自动跑
+  if(S.opt.engine === 'ai'){
+    setOpStatus('idle', '已选 ' + real.map(c => CHIP_LABEL[c]).join(' + ')
+      + '，点「调用 AI 优化」开始');
+    return;
+  }
+  previewTimer = setTimeout(()=>{ runOptimize({ live: true }); }, delay == null ? 150 : delay);
+}
+
+/** 跑一次优化。live=true 是实时预览（受 PREVIEW_MAX 限制、不挡遮罩），false 是显式应用 */
+async function runOptimize(opts){
+  const live = !!(opts && opts.live);
+  if(!S.img) return;
+
+  const chips = S.opt.chips.filter(c => c !== 'none');
+  if(!chips.length){ resetOptimization(); return; }
+  if(live && S.opt.engine === 'ai') return;          // 双保险
+
+  const token = ++previewToken;
+  const cols = clamp(parseInt(colsInput.value) || 29, 8, 200);
+  const rows = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+  const res  = live ? Math.min(S.opt.workRes, PREVIEW_MAX) : S.opt.workRes;
+  const cfg  = { workRes: res, cutTol: S.opt.cutTol, cartoonLv: S.opt.cartoonLv };
+  const isAI = S.opt.engine === 'ai';
+
+  setOpStatus('run', live ? '实时预览中…' : (isAI ? '正在调用第三方 AI 模型…' : '正在本地处理…'));
+  if(!live) showLoading(isAI ? '正在调用 AI 模型…' : '正在优化图片…');
+  // 先把「处理中」画出来，再开始跑同步的重活，否则界面会像卡住一样
+  await yieldToPaint();
+
+  try {
+    const out = isAI
+      ? await runAIPipeline(S.baseImg || S.img, chips, cfg, cols, rows)
+      : await runLocalPipeline(S.baseImg || S.img, chips, cfg, cols, rows);
+
+    if(token !== previewToken) return;               // 已经有点了更新的，这次结果作废
+
+    S.optCache = { canvas: out.canvas, preAlign: out.preAlign, chips: chips.slice(), cols, rows, fit: fitMode.value };
+    S.optGen++;                                      // 结果落地，外部可据此确认这一轮跑完了
+    setWorkImage(out.canvas, out.canvas.width, out.canvas.height);
+    showCompare(out.canvas);
+    setOpStatus('ok',
+      (live ? '实时预览：' : '已应用：') + chips.map(c => CHIP_LABEL[c]).join(' + ')
+      + (isAI ? '（第三方 AI）'
+              : '（本地算法' + (live && res < S.opt.workRes ? ' · ' + res + 'px 预览' : '') + '）'));
+    setOpHint(out.notes || []);
+    drawSource();
+    applyRatioToRows();
+    generate();
+  } catch (err) {
+    if(token !== previewToken) return;
+    console.error(err);
+    setOpStatus('err', '优化失败：' + (err && err.message ? err.message : err));
+    setOpHint([]);
+  } finally {
+    if(!live) hideLoading();
+  }
+}
+
+/** 点按钮 = 用完整分辨率跑一遍（本地）或调用 AI（花钱的那条路） */
+function applyOptimization(){
+  // 用户显式点了按钮，先作废还在排队里的预览；
+  // 否则预览会在按钮跑完之后补一刀，把结果降级成 720px 预览版
+  clearTimeout(previewTimer);
+  previewToken++;
+  return runOptimize({ live: false });
+}
+
+/** 按钮的角色随引擎变：本地引擎下它只是"用完整分辨率再跑一遍" */
+function syncOptimizeBtn(){
+  $('btnOptimize').textContent = S.opt.engine === 'ai' ? '🤖 调用 AI 优化' : '✨ 高清重跑';
+}
+
+/** 网格尺寸或适配方式变了：只需重跑「像素预对齐」那一步，不用整条流水线重来 */
+function reAlignIfNeeded(){
+  const C = S.optCache;
+  if (!C || !C.preAlign || !C.chips.includes('align')) return false;
+  const cols = clamp(parseInt(colsInput.value) || 29, 8, 200);
+  const rows = clamp(parseInt(rowsInput.value) || 29, 8, 200);
+  const fit  = fitMode.value;
+  if (cols === C.cols && rows === C.rows && fit === C.fit) return false;
+  const out = pixelAlign(C.preAlign, cols, rows, fit, C.preAlign.width, C.preAlign.height);
+  C.cols = cols; C.rows = rows; C.fit = fit;
+  setWorkImage(out, out.width, out.height);
+  showCompare(out);
+  return true;
+}
+
+function setWorkImage(canvas, w, h){
+  S.workImg = canvas;
+  S.workW = w; S.workH = h;
+}
+
+function resetOptimization(){
+  clearTimeout(previewTimer);
+  previewToken++;              // 作废还在路上的预览，免得它把原图又覆盖回去
+  // 「直出」是用户显式做过的选择，保留高亮给个反馈；
+  // 真正清空只发生在用户自己取消勾选的时候。
+  if(!S.opt.chips.includes('none')) S.opt.chips = [];
+  S.optCache = null;
+  // 回到「底图」而不是原图：裁剪是独立于优化的一层，不该被"恢复原图"抹掉
+  S.workImg = S.baseImg || S.img;
+  S.workW = S.baseW || S.imgW; S.workH = S.baseH || S.imgH;
+  $('compareBox').classList.add('hidden');
+  syncChips();
+  setOpStatus('idle', S.cropped ? '尚未处理，将使用裁剪后的图排豆' : '尚未处理，将使用原图排豆');
+  setOpHint([]);
+  drawSource();
+  applyRatioToRows();
+  generate();
+}
+
+function showCompare(canvas){
+  $('compareBox').classList.remove('hidden');
+  const b = $('cmpBefore'), a = $('cmpAfter');
+  const W = 420;
+  // 「优化前」用底图：优化是从裁剪后的图开始的，拿原始照片比会让人以为多出来一块
+  const before = S.baseImg || S.img;
+  const [bw, bh] = imgDims(before);
+  [[b, before, bw, bh, 'cmpBeforeInfo'], [a, canvas, canvas.width, canvas.height, 'cmpAfterInfo']]
+    .forEach(([cv, src, sw, sh, infoId]) => {
+      const sc = Math.min(1, W / sw);
+      cv.width = Math.round(sw * sc); cv.height = Math.round(sh * sc);
+      const g = cv.getContext('2d');
+      g.clearRect(0, 0, cv.width, cv.height);
+      g.drawImage(src, 0, 0, cv.width, cv.height);
+      $(infoId).textContent = sw + ' × ' + sh;
+    });
+}
+
+const CHIP_LABEL = { bg:'去背', cartoon:'卡通化', color:'自动调色', align:'像素预对齐',
+                     denoise:'降噪', sharpen:'锐化', none:'直出' };
+
+function syncChips(){
+  [...$('chipBox').children].forEach(b => {
+    b.classList.toggle('on', S.opt.chips.includes(b.dataset.opt));
+  });
+}
+
+/* ============================================================
+   十四、事件绑定
+   ============================================================ */
+// 上传
+$('btnPick').addEventListener('click', ()=>fileInput.click());
+$('btnCamera').addEventListener('click', ()=>camInput.click());
+dropEl.addEventListener('click', ()=>fileInput.click());
+fileInput.addEventListener('change', e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value=''; });
+camInput.addEventListener('change',  e=>{ if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value=''; });
+
+['dragenter','dragover'].forEach(ev=>{
+  dropEl.addEventListener(ev, e=>{ e.preventDefault(); dropEl.classList.add('over'); });
+});
+['dragleave','drop'].forEach(ev=>{
+  dropEl.addEventListener(ev, e=>{ e.preventDefault(); dropEl.classList.remove('over'); });
+});
+dropEl.addEventListener('drop', e=>{
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) handleFile(f);
+});
+// 全局拖拽
+window.addEventListener('dragover', e=>e.preventDefault());
+window.addEventListener('drop', e=>{
+  e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f && f.type.startsWith('image/')) handleFile(f);
+});
+// 粘贴
+window.addEventListener('paste', e=>{
+  const items = e.clipboardData && e.clipboardData.items;
+  if(!items) return;
+  for(const it of items){
+    if(it.type.startsWith('image/')){
+      const f = it.getAsFile();
+      if(f){ handleFile(f); e.preventDefault(); }
+      break;
+    }
+  }
+});
+
+// 示例图
+$('btnDemo').addEventListener('click', ()=>{
+  const c = makeDemoImage();
+  c.toBlob(b=>{
+    const f = new File([b], 'demo.png', {type:'image/png'});
+    handleFile(f);
+  }, 'image/png');
+});
+
+/** 成品尺寸变了：先让裁剪框贴合新比例（会连带重跑排豆），比例没变就直接重跑 */
+function onBoardChanged(){
+  if (syncCropToBoard()) return;      // 内部已经重跑了
+  updateCropInfo();
+  updateFitNote();
+  generate();
+}
+
+// 尺寸预设
+$('presetSeg').addEventListener('click', e=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  [...$('presetSeg').children].forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const w = parseInt(btn.dataset.w), h = parseInt(btn.dataset.h);
+  if(w === 0){ colsInput.focus(); return; }
+  colsInput.value = w; rowsInput.value = h;
+  onBoardChanged();
+});
+
+// 宽高联动
+colsInput.addEventListener('input', ()=>{
+  if(lockRatio.checked) applyRatioToRows();
+  syncPresetState();
+  onBoardChanged();
+});
+rowsInput.addEventListener('input', ()=>{ syncPresetState(); onBoardChanged(); });
+lockRatio.addEventListener('change', ()=>{
+  $('lockNote').textContent = lockRatio.checked ? '按比例自动' : '手动设置';
+  if(lockRatio.checked) applyRatioToRows();
+  onBoardChanged();
+});
+function syncPresetState(){
+  const w = parseInt(colsInput.value), h = parseInt(rowsInput.value);
+  [...$('presetSeg').children].forEach(b=>{
+    const bw = parseInt(b.dataset.w), bh = parseInt(b.dataset.h);
+    b.classList.toggle('on', bw === w && bh === h);
+  });
+}
+
+// 其它参数
+fitMode.addEventListener('change', generate);
+bgRemove.addEventListener('change', generate);
+ditherChk.addEventListener('change', generate);
+maxColors.addEventListener('input', ()=>{
+  maxColorNote.textContent = maxColors.value + ' 种';
+  generate();
+});
+bgTol.addEventListener('input', ()=>{
+  bgTolNote.textContent = bgTol.value;
+  generate();
+});
+
+// 色卡
+paletteSel.addEventListener('change', ()=>{
+  const isCustom = paletteSel.value === 'custom';
+  $('customPaletteWrap').classList.toggle('hidden', !isCustom);
+  if(!isCustom){
+    S.palette = buildPalette(GENERAL_PALETTE);
+    generate();
+  }
+});
+$('btnApplyCustom').addEventListener('click', ()=>{
+  const list = parseCustomPalette($('customPalette').value);
+  if(list.length < 2){ alert('请至少输入 2 个颜色，格式如：A1 #FF0000 正红'); return; }
+  S.palette = buildPalette(list);
+  maxColors.max = Math.min(64, list.length);
+  if(parseInt(maxColors.value) > list.length) maxColors.value = list.length;
+  maxColorNote.textContent = maxColors.value + ' 种';
+  toast('已应用 ' + list.length + ' 个自定义颜色');
+  generate();
+});
+
+/* ---------- 图片优化 ---------- */
+const AI_STORE = 'pindou.ai.config.v1';
+
+function saveAI(){
+  try { localStorage.setItem(AI_STORE, JSON.stringify(S.ai)); } catch(e){ /* file:// 下可能不可用 */ }
+}
+function loadAI(){
+  try {
+    const raw = localStorage.getItem(AI_STORE);
+    if(raw) Object.assign(S.ai, JSON.parse(raw));
+  } catch(e){ /* 忽略 */ }
+  $('aiProvider').value = S.ai.provider;
+  $('aiKey').value      = S.ai.key;
+  $('aiEndpoint').value = S.ai.endpoint || AI_DEFAULTS[S.ai.provider].endpoint;
+  $('aiModel').value    = S.ai.model    || AI_DEFAULTS[S.ai.provider].model;
+  $('aiProxy').value    = S.ai.proxy;
+}
+
+// 引擎切换
+$('engineSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('engineSeg').children].forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  S.opt.engine = b.dataset.engine;
+  $('aiPanel').classList.toggle('hidden', S.opt.engine !== 'ai');
+  $('localParams').classList.toggle('hidden', S.opt.engine === 'ai');
+  syncOptimizeBtn();
+  schedulePreview(0);          // 本地引擎切回来就立刻重跑预览
+});
+
+// 优化方案多选
+$('chipBox').addEventListener('click', e=>{
+  const b = e.target.closest('.chip'); if(!b) return;
+  const id = b.dataset.opt;
+  if(id === 'none'){
+    // 「直出」是排他项：选中它等于清空其它
+    S.opt.chips = S.opt.chips.includes('none') ? [] : ['none'];
+  }else{
+    let arr = S.opt.chips.filter(c => c !== 'none');
+    arr = arr.includes(id) ? arr.filter(c => c !== id) : arr.concat(id);
+    S.opt.chips = arr;
+  }
+  syncChips();
+  schedulePreview();           // 勾选即预览，不用再点按钮
+});
+
+// 本地参数 —— 拖动时连续触发，防抖交给 schedulePreview
+$('cutTol').addEventListener('input', ()=>{
+  S.opt.cutTol = +$('cutTol').value;
+  $('cutTolNote').textContent = S.opt.cutTol;
+  schedulePreview();
+});
+$('cartoonLv').addEventListener('input', ()=>{
+  S.opt.cartoonLv = +$('cartoonLv').value;
+  $('cartoonNote').textContent = ['', '轻', '中', '重'][S.opt.cartoonLv];
+  schedulePreview();
+});
+$('workRes').addEventListener('change', ()=>{
+  S.opt.workRes = +$('workRes').value;
+  schedulePreview(0);
+});
+
+// AI 配置
+$('aiProvider').addEventListener('change', ()=>{
+  S.ai.provider = $('aiProvider').value;
+  const d = AI_DEFAULTS[S.ai.provider];
+  S.ai.endpoint = d.endpoint;
+  S.ai.model = d.model;
+  $('aiEndpoint').value = d.endpoint;
+  $('aiModel').value = d.model;
+  saveAI();
+});
+['aiKey', 'aiEndpoint', 'aiModel', 'aiProxy'].forEach(id=>{
+  $(id).addEventListener('input', ()=>{
+    S.ai[id.slice(2).toLowerCase()] = $(id).value;
+    saveAI();
+  });
+});
+
+$('btnOptimize').addEventListener('click', applyOptimization);
+$('btnResetOpt').addEventListener('click', resetOptimization);
+
+// 视图切换
+$('viewSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  [...$('viewSeg').children].forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+  S.view = b.dataset.view;
+  renderResult(S.lastScale || 14);
+});
+// 显示选项
+$('optSeg').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  b.classList.toggle('on');
+  S.opts[b.dataset.opt] = b.classList.contains('on');
+  const R = S.result;
+  if(R){
+    if(b.dataset.opt === 'code' && S.opts.code && R.cols > 60){
+      toast('格子太多（超过 60 列），色号会看不清，建议减少列数');
+    }
+    S.lastScale = computeScale(R.cols, R.rows);
+  }
+  renderResult(S.lastScale || 14);
+});
+
+// 缩放
+function setZoom(z){
+  S.zoom = clamp(z, 0.15, 4);
+  renderResult(S.lastScale || 14);
+}
+$('btnZoomIn').addEventListener('click', ()=>setZoom(S.zoom * 1.3));
+$('btnZoomOut').addEventListener('click', ()=>setZoom(S.zoom / 1.3));
+$('btnZoomFit').addEventListener('click', ()=>{ S.zoom = 1; renderResult(S.lastScale || 14); });
+$('btnPrint').addEventListener('click', ()=>window.print());
+
+// 预览框宽度变了（换设备 / 转屏 / 拉窗口）→ 单格倍率重算并重画，
+// 否则手机上还按桌面宽度算出来的倍率画，只能左右拖着看。
+let __rzTimer = 0;
+window.addEventListener('resize', ()=>{
+  clearTimeout(__rzTimer);
+  __rzTimer = setTimeout(()=>{
+    if(S.img) layoutCrop();          // 裁剪舞台跟着新宽度重排
+    if(!S.result || S.busy) return;
+    const s = computeScale(S.result.cols, S.result.rows);
+    S.lastScale = s;
+    renderResult(s);
+  }, 200);
+});
+
+// 导出
+$('btnDlPattern').addEventListener('click', ()=>exportPattern(false));
+$('btnDlBead').addEventListener('click', ()=>exportPattern(true));
+$('btnDlCsv').addEventListener('click', exportCsv);
+$('btnCopyList').addEventListener('click', copyList);
+
+/* ============================================================
+   十五、初始化
+   ============================================================ */
+S.palette = buildPalette(GENERAL_PALETTE);
+maxColors.max = 64;
+syncPresetState();
+syncChips();
+loadAI();
+maxColorNote.textContent = maxColors.value + ' 种';
+bgTolNote.textContent = bgTol.value;
+$('cutTolNote').textContent = S.opt.cutTol;
+$('cartoonNote').textContent = ['', '轻', '中', '重'][S.opt.cartoonLv];
+$('workRes').value = String(S.opt.workRes);
+syncOptimizeBtn();
+</script>
+</body>
+</html>

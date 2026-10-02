@@ -1,0 +1,18 @@
+# 安全响应头。注意 _headers 本身不会被对外提供（wrangler 内置把它排除在静态资源外），
+# 所以 curl https://site/_headers 取不到是正常的。
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+# HTML 必须短缓存：发版后用户拿到旧 HTML 配新资源会白屏。
+# Cloudflare 对静态资源的默认值本来就是 public, max-age=0, must-revalidate，
+# 这里写出来是为了明确表达意图。
+/
+  Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate

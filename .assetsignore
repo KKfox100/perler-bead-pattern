@@ -1,0 +1,19 @@
+# 部署时要排除的文件。wrangler.jsonc 里的 assets.exclude 是无效字段，
+# 只会打印一句 warning 然后照样把整个目录传上去，所以必须靠这个文件。
+
+.git/                 # 不排除的话提交历史会被公开挂在公网上
+.gitattributes
+.gitignore
+.github/
+node_modules/
+.wrangler/
+.e2e/                 # 测试脚本，属于开发工具链，不该对外提供
+.workbuddy-ai/
+package.json
+package-lock.json
+wrangler.jsonc
+*.md
+
+# 同工作区里另一份无关项目的报告，不进仓库也不上线
+手持喷码机产品技术发展方向报告.html
+手持喷码机差评与痛点分析报告.html

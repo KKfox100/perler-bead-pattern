@@ -1,0 +1,16 @@
+{
+  // 站点根就是仓库根，所以 directory 是 "."。
+  // 注意 assets 只认 directory / binding / html_handling / not_found_handling /
+  // run_worker_first —— 写 "exclude" 只会被忽略并照样全量上传，排除要靠 .assetsignore。
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "perler-bead-pattern",
+  "compatibility_date": "2026-10-02",
+  "assets": {
+    "directory": ".",
+    "html_handling": "auto-trailing-slash",
+    // 这个站点没有任何路由（不分 history 也不分 hash），所以不用 SPA 回落。
+    // 用 SPA 回落会让任意乱输的路径都返回 200 + 首页，被搜索引擎当成无限重复页收录。
+    "not_found_handling": "404-page"
+  },
+  "observability": { "enabled": true }
+}

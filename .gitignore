@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+
+# WorkBuddy 的项目记忆，只在本机有用
+.workbuddy-ai/
+
+# 测试跑出来的截图，随时可重新生成
+.e2e/*.png
+
+# 同工作区里另一份无关项目的报告
+手持喷码机产品技术发展方向报告.html
+手持喷码机差评与痛点分析报告.html

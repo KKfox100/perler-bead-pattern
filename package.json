@@ -1,0 +1,18 @@
+{
+  "name": "perler-bead-pattern",
+  "version": "1.0.0",
+  "private": true,
+  "description": "把照片自动转成拼豆图纸的纯前端网页工具（含裁剪、去背、卡通化与实时预览）",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "node .e2e/test.js && node .e2e/test-opt.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.146.0"
+  },
+  "optionalDependencies": {
+    "@cloudflare/workerd-windows-64": "^1.20261001.1"
+  }
+}
